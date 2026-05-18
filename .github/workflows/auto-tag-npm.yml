@@ -36,6 +36,17 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 2   # need previous commit to diff against
+          # Pushes authenticated with the default GITHUB_TOKEN do not trigger
+          # downstream workflows on the same repo — by design (prevents
+          # infinite workflow loops). Without a PAT here, the npm-v<version>
+          # tag would push successfully but `npm-publish.yml`'s `on: push.tags`
+          # trigger would never fire, leaving the release un-published until a
+          # human manually runs `gh workflow run npm-publish.yml`. The
+          # ADMIN_PUSH_PAT secret is the same maintainer PAT
+          # generate-registry.yml already uses for the equivalent reason.
+          # See AGENTS.md "Releasing the npm installer" for the documented
+          # auto-release rhythm this token unlocks.
+          token: ${{ secrets.ADMIN_PUSH_PAT }}
 
       - id: check
         name: Detect version bump
