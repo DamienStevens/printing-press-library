@@ -225,6 +225,20 @@ func TestAPIDisplayName(t *testing.T) {
 			slug:  "servicetitan-pricebook",
 			want:  "ServiceTitan Pricebook",
 		},
+		{
+			name:  "PP-prefixed artifact yields to corrected display name",
+			pp:    printingPressManifest{APIName: "clarity", DisplayName: "Microsoft Clarity"},
+			prior: RegistryEntry{API: "PP Clarity"},
+			slug:  "clarity",
+			want:  "Microsoft Clarity",
+		},
+		{
+			name:  "PP-prefixed brand without shared tail is preserved",
+			pp:    printingPressManifest{APIName: "pp-labs", DisplayName: "Acme Widgets"},
+			prior: RegistryEntry{API: "PP Labs"},
+			slug:  "pp-labs",
+			want:  "PP Labs",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
