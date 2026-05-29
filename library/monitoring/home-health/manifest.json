@@ -1,0 +1,39 @@
+{
+  "manifest_version": "0.3",
+  "name": "home-health-pp-mcp",
+  "display_name": "Home Health",
+  "version": "4.19.0",
+  "description": "One view of your whole home's air health — radon, mold, particulates, CO2, VOC — aggregated from every sensor on your LAN, with a local history no single vendor app gives you.",
+  "author": {
+    "name": "CLI Printing Press"
+  },
+  "license": "Apache-2.0",
+  "server": {
+    "type": "binary",
+    "entry_point": "bin/home-health-pp-mcp",
+    "mcp_config": {
+      "command": "${__dirname}/bin/home-health-pp-mcp",
+      "args": [],
+      "env": {
+        "HOME_HEALTH_SYNCSIGN_AUTH2": "${user_config.home_health_syncsign_auth2}"
+      }
+    }
+  },
+  "user_config": {
+    "home_health_syncsign_auth2": {
+      "type": "string",
+      "title": "HOME_HEALTH_SYNCSIGN_AUTH2",
+      "description": "Sets HOME_HEALTH_SYNCSIGN_AUTH2 for the Home Health MCP server.",
+      "sensitive": true,
+      "required": true
+    }
+  },
+  "compatibility": {
+    "claude_desktop": ">=1.0.0",
+    "platforms": [
+      "darwin",
+      "linux",
+      "win32"
+    ]
+  }
+}

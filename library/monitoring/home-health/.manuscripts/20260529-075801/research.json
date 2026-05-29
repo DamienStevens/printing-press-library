@@ -1,0 +1,65 @@
+{
+  "api_name": "home-health",
+  "novelty_score": 0,
+  "alternatives": [],
+  "narrative": {
+    "display_name": "Home Health",
+    "headline": "One view of your whole home's air health \u2014 radon, mold, particulates, CO2, VOC \u2014 aggregated from every sensor on your LAN, with a local history no single vendor app gives you.",
+    "value_prop": "Pulls AirThings (radon/VOC/mold), IQAir AirVisual (PM2.5/CO2/AQI) and MOCREO (room temp/humidity incl. crawlspace) into one local SQLite history, then answers mold and allergy questions across day/week/month/quarter/year/all-time.",
+    "when_to_use": "Use to check whole-home air health, spot mold-risk humidity trends by room, track radon, and review allergy-relevant particulate/VOC/CO2 over any time window.",
+    "quickstart": [
+      {
+        "command": "home-health-pp-cli collect",
+        "comment": "Pull the latest readings from every configured sensor into local history"
+      },
+      {
+        "command": "home-health-pp-cli dashboard --period week --focus mold",
+        "comment": "Whole-home mold view: rooms over 60% RH this week"
+      },
+      {
+        "command": "home-health-pp-cli rooms",
+        "comment": "See every monitored room and its latest snapshot"
+      },
+      {
+        "command": "home-health-pp-cli sensor Crawlspace --period month",
+        "comment": "Drill into one room's trend over a month"
+      }
+    ],
+    "recipes": [
+      {
+        "title": "Mold risk this week",
+        "command": "home-health-pp-cli dashboard --period week --focus mold",
+        "explanation": "Flags rooms with sustained humidity at or above 60% RH plus any AirThings mold index."
+      },
+      {
+        "title": "Allergy load over a quarter",
+        "command": "home-health-pp-cli dashboard --period quarter --focus allergy",
+        "explanation": "PM2.5, VOC and CO2 trends across the home for allergy sufferers."
+      },
+      {
+        "title": "Agent-native mold summary",
+        "command": "home-health-pp-cli dashboard --period month --focus mold --agent --select flags,mold",
+        "explanation": "Structured JSON narrowed to the flags and per-room mold exceedance for an agent to act on."
+      },
+      {
+        "title": "One room's full trend",
+        "command": "home-health-pp-cli sensor Kitchen --period year",
+        "explanation": "Min/avg/max per metric for a single room over the year."
+      },
+      {
+        "title": "Backfill MOCREO history",
+        "command": "home-health-pp-cli collect --since 168h",
+        "explanation": "MOCREO keeps server-side history; pull the last week in one shot."
+      }
+    ],
+    "trigger_phrases": [
+      "check home air quality",
+      "is there mold risk",
+      "what's my radon level",
+      "home health dashboard",
+      "use home-health"
+    ]
+  },
+  "recommendation": "proceed",
+  "researched_at": "2026-05-29T00:00:00Z"
+}

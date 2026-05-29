@@ -1,0 +1,16 @@
+# agentcookie.toml: secrets-bus adoption manifest v2
+# See docs/spec-agentcookie-secrets-bus-v2-adoption.md
+schema_version = 2
+name = "home-health-pp-cli"
+display_name = "Home Health"
+description = "One view of your whole home's air health — radon, mold, particulates, CO2, VOC — aggregated from every sensor on your LAN, with a local history no single vendor app gives you."
+project_kind = "cli"
+
+[secrets.file]
+path = "~/.config/home-health-pp-cli/config.toml"
+
+[sync]
+default = false
+
+[sync.keys]
+HOME_HEALTH_SYNCSIGN_AUTH2 = true

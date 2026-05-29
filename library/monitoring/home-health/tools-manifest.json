@@ -1,0 +1,317 @@
+{
+  "api_name": "home-health",
+  "base_url": "https://api.sync-sign.com/v2",
+  "description": "One view of your whole home's air health — radon, mold, particulates, CO2, VOC — aggregated from every sensor on your LAN, with a local history no single vendor app gives you.",
+  "mcp_ready": "full",
+  "http_transport": "standard",
+  "auth": {
+    "type": "api_key",
+    "header": "Authorization",
+    "in": "header",
+    "env_vars": [
+      "HOME_HEALTH_SYNCSIGN_AUTH2"
+    ],
+    "env_var_specs": [
+      {
+        "name": "HOME_HEALTH_SYNCSIGN_AUTH2",
+        "kind": "per_call",
+        "required": true,
+        "sensitive": true,
+        "inferred": true
+      }
+    ]
+  },
+  "required_headers": [],
+  "tools": [
+    {
+      "name": "alerts_get",
+      "description": "Get all Alerts related to the user. Required: limit. Optional: offset, dismissed, beginTime (plus 1 more). Returns the ArrayOfAlert.",
+      "method": "GET",
+      "path": "/alerts",
+      "params": [
+        {
+          "name": "limit",
+          "type": "float",
+          "location": "query",
+          "description": "The data amount of each query",
+          "required": true
+        },
+        {
+          "name": "offset",
+          "type": "float",
+          "location": "query",
+          "description": "offset means this amount of rows were skipped before inquiring: pageSize * (pageIndex - 1)"
+        },
+        {
+          "name": "dismissed",
+          "type": "bool",
+          "location": "query",
+          "description": "In default, all alerts will be collected. True/false corresponds to dismiss and checked alerts."
+        },
+        {
+          "name": "beginTime",
+          "type": "float",
+          "location": "query",
+          "description": "Begin time (s)"
+        },
+        {
+          "name": "endTime",
+          "type": "float",
+          "location": "query",
+          "description": "End time (s)"
+        }
+      ]
+    },
+    {
+      "name": "alerts_put-delete-all",
+      "description": "Delete all Alerts related to the user. Returns the Response. Destructive.",
+      "method": "DELETE",
+      "path": "/alerts/delete_all",
+      "params": []
+    },
+    {
+      "name": "alerts_put-dismiss-all",
+      "description": "Dismiss all Alerts related to the user. Returns the updated Response.",
+      "method": "PUT",
+      "path": "/alerts/dismiss_all",
+      "params": []
+    },
+    {
+      "name": "devices_get",
+      "description": "Get the list of devices through Authorization. Returns array of UserDevice.",
+      "method": "GET",
+      "path": "/devices",
+      "params": []
+    },
+    {
+      "name": "devices_get-sn",
+      "description": "Get Hub details through Authorization and SN. Required: sn. Returns the Device.",
+      "method": "GET",
+      "path": "/devices/{sn}",
+      "params": [
+        {
+          "name": "sn",
+          "type": "string",
+          "location": "path",
+          "description": "You can get the serial number of the Hub by calling the API that '/devices'",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "nodes_get",
+      "description": "Get all Node related to the user. Returns array of Node.",
+      "method": "GET",
+      "path": "/nodes",
+      "params": []
+    },
+    {
+      "name": "nodes_get-nodeid",
+      "description": "Get details of a Node related to the user. Required: node_id. Returns the Node.",
+      "method": "GET",
+      "path": "/nodes/{node_id}",
+      "params": [
+        {
+          "name": "node_id",
+          "type": "string",
+          "location": "path",
+          "description": "You can get the id of the Node by calling the API that '/nodes'",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "nodes_put",
+      "description": "Put. Required: node_id. Optional: info. Returns the updated Response.",
+      "method": "PUT",
+      "path": "/nodes/{node_id}",
+      "params": [
+        {
+          "name": "node_id",
+          "type": "string",
+          "location": "path",
+          "description": "You can get the Node id by calling the API that '/nodes'",
+          "required": true
+        },
+        {
+          "name": "info-humidity-calibration",
+          "wire_name": "info.humidity.calibration",
+          "type": "float",
+          "location": "body",
+          "description": "Calibrated gap, 0 in default."
+        },
+        {
+          "name": "info-humidity-delay-before-alert",
+          "wire_name": "info.humidity.delayBeforeAlert",
+          "type": "float",
+          "location": "body",
+          "description": "Time-delayed (s)"
+        },
+        {
+          "name": "info-humidity-enable-alert",
+          "wire_name": "info.humidity.enableAlert",
+          "type": "bool",
+          "location": "body",
+          "description": "If the notification was enable."
+        },
+        {
+          "name": "info-humidity-max",
+          "wire_name": "info.humidity.max",
+          "type": "float",
+          "location": "body",
+          "description": "Humidity max threshold for alert, The value of (value * 100)"
+        },
+        {
+          "name": "info-humidity-min",
+          "wire_name": "info.humidity.min",
+          "type": "float",
+          "location": "body",
+          "description": "Humidity min threshold for alert, The value of (value * 100)"
+        },
+        {
+          "name": "info-temperature-calibration",
+          "wire_name": "info.temperature.calibration",
+          "type": "float",
+          "location": "body",
+          "description": "Calibrated gap, 0 in default"
+        },
+        {
+          "name": "info-temperature-delay-before-alert",
+          "wire_name": "info.temperature.delayBeforeAlert",
+          "type": "float",
+          "location": "body",
+          "description": "Time-delayed (s)"
+        },
+        {
+          "name": "info-temperature-enable-alert",
+          "wire_name": "info.temperature.enableAlert",
+          "type": "bool",
+          "location": "body",
+          "description": "If the notification was enable"
+        },
+        {
+          "name": "info-temperature-max",
+          "wire_name": "info.temperature.max",
+          "type": "float",
+          "location": "body",
+          "description": "Temperature max threshold for alert, The value of (value * 100), unit is (℃)"
+        },
+        {
+          "name": "info-temperature-min",
+          "wire_name": "info.temperature.min",
+          "type": "float",
+          "location": "body",
+          "description": "Temperature min threshold for alert, The value of (value * 100), unit is (℃)"
+        }
+      ]
+    },
+    {
+      "name": "nodes_samples_delete-node",
+      "description": "Delete all the samples of this node. Required: node_id. Returns the Response. Destructive.",
+      "method": "DELETE",
+      "path": "/nodes/{node_id}/samples/delete_all",
+      "params": [
+        {
+          "name": "node_id",
+          "type": "string",
+          "location": "path",
+          "description": "You can get the id of the Node by calling the API that '/nodes'",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "nodes_samples_get-node",
+      "description": "Obtain all the samples of this node. Required: node_id, limit. Optional: offset, beginTime, endTime. Returns array of Record.",
+      "method": "GET",
+      "path": "/nodes/{node_id}/samples",
+      "params": [
+        {
+          "name": "node_id",
+          "type": "string",
+          "location": "path",
+          "description": "You can get the id of the Node by calling the API that '/nodes'",
+          "required": true
+        },
+        {
+          "name": "limit",
+          "type": "float",
+          "location": "query",
+          "description": "The data amount of each query",
+          "required": true
+        },
+        {
+          "name": "offset",
+          "type": "float",
+          "location": "query",
+          "description": "offset means this amount of rows were skipped before inquiring: pageSize * (pageIndex - 1)"
+        },
+        {
+          "name": "beginTime",
+          "type": "float",
+          "location": "query",
+          "description": "Begin time(s)"
+        },
+        {
+          "name": "endTime",
+          "type": "float",
+          "location": "query",
+          "description": "End time(s)"
+        }
+      ]
+    },
+    {
+      "name": "oauth_post-refresh-token",
+      "description": "replace token. Optional: provider, refreshToken. Returns the new TokenResponse.",
+      "method": "POST",
+      "path": "/oauth/token/refresh",
+      "params": [
+        {
+          "name": "provider",
+          "type": "string",
+          "location": "body",
+          "description": "Select the corresponding provider according to the product, Mocreo: mocreo, Syncsign: mrd"
+        },
+        {
+          "name": "refreshToken",
+          "type": "string",
+          "location": "body",
+          "description": "Refresh token"
+        }
+      ]
+    },
+    {
+      "name": "oauth_post-token",
+      "description": "To get a token. This header value grants access to data resources. Optional: password, provider, username. Returns the new TokenResponse.",
+      "method": "POST",
+      "path": "/oauth/token",
+      "params": [
+        {
+          "name": "password",
+          "type": "string",
+          "location": "body",
+          "description": "Password"
+        },
+        {
+          "name": "provider",
+          "type": "string",
+          "location": "body",
+          "description": "Select the corresponding provider according to the product, Mocreo: mocreo, Syncsign: mrd"
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "location": "body",
+          "description": "Username"
+        }
+      ]
+    },
+    {
+      "name": "user_get",
+      "description": "Get user information. Returns the User.",
+      "method": "GET",
+      "path": "/user",
+      "params": []
+    }
+  ]
+}
