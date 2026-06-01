@@ -6183,6 +6183,57 @@
       }
     },
     {
+      "name": "offerup",
+      "category": "commerce",
+      "api": "OfferUp",
+      "description": "Search local OfferUp listings from your terminal, keep them in a local database",
+      "search_terms": [
+        "offerup",
+        "offerup-pp-cli",
+        "Search local OfferUp listings from your terminal, keep them in a local database, and spot underpriced deals before anyone else — no login and no paid key for the things that matter most.",
+        "The real going rate",
+        "price-check",
+        "See the real going rate for an item in your area — median, 25th/75th percentile, min, max, and the firm-vs-negotiable split — computed across every listing you've pulled.",
+        "Spot the underpriced finds",
+        "deals",
+        "Surface listings priced a chosen percentage below the local median for that item — the underpriced finds, ranked by how far under they are.",
+        "What's new since you looked",
+        "new-since",
+        "Show only the listings that appeared since a cutoff for a saved search, so you never re-scan items you already saw.",
+        "Catch price drops",
+        "price-drops",
+        "Detect listings whose price fell between syncs — the same item, now cheaper — sorted by the size of the drop.",
+        "Size up a seller",
+        "seller-scan",
+        "Pull a seller's full synced inventory alongside their reputation badges (business/dealer/TruYou), join date, and the median asking price across their listings.",
+        "Daily deal briefing",
+        "digest",
+        "A single composite report for a saved search combining what's new, what dropped in price, and what's underpriced."
+      ],
+      "path": "library/commerce/offerup",
+      "printer": "tmchow",
+      "printer_name": "Trevin Chow",
+      "creator": {
+        "handle": "tmchow",
+        "name": "Trevin Chow"
+      },
+      "mcp": {
+        "binary": "offerup-pp-mcp",
+        "transports": [
+          "stdio",
+          "http"
+        ],
+        "tool_count": 2,
+        "public_tool_count": 2,
+        "auth_type": "cookie",
+        "env_vars": [
+          "OFFERUP_COOKIE"
+        ],
+        "mcp_ready": "full",
+        "spec_format": "internal"
+      }
+    },
+    {
       "name": "ollama-cloud",
       "category": "ai",
       "api": "Ollama Cloud",
