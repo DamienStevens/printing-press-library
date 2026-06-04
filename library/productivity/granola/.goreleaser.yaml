@@ -42,7 +42,7 @@ checksum:
 brews:
   - name: granola-pp-cli
     repository:
-      owner: dstevens
+      owner: DamienStevens
       name: homebrew-tap
     homepage: "https://github.com/mvanhorn/printing-press-library"
     description: "Every Granola feature — plus offline SQLite cross-meeting search, attendee timelines, and a MEMO pipeline runner..."
