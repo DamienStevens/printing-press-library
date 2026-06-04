@@ -1,0 +1,51 @@
+version: 2
+project_name: aws-billing-pp-cli
+changelog:
+  disable: true
+builds:
+  - id: aws-billing-pp-cli
+    main: ./cmd/aws-billing-pp-cli
+    binary: aws-billing-pp-cli
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X github.com/mvanhorn/printing-press-library/library/cloud/aws-billing/internal/cli.version={{ .Version }}
+    targets:
+      - darwin_amd64
+      - darwin_arm64
+      - linux_amd64
+      - linux_arm64
+      - windows_amd64
+      - windows_arm64
+  - id: aws-billing-pp-mcp
+    main: ./cmd/aws-billing-pp-mcp
+    binary: aws-billing-pp-mcp
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w
+    targets:
+      - darwin_amd64
+      - darwin_arm64
+      - linux_amd64
+      - linux_arm64
+      - windows_amd64
+      - windows_arm64
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+checksum:
+  name_template: checksums.txt
+brews:
+  - name: aws-billing-pp-cli
+    repository:
+      owner: DamienStevens
+      name: homebrew-tap
+    homepage: "https://github.com/mvanhorn/printing-press-library"
+    description: "Get a non-expert from zero to a Slack-delivered, plain-English"
+    install: |
+      bin.install "aws-billing-pp-cli"
+      bin.install "aws-billing-pp-mcp"

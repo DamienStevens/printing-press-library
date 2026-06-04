@@ -1,0 +1,28 @@
+{
+  "timestamp": "2026-05-29T13:05:13.403283Z",
+  "cli_dir": "\u003ccli-dir\u003e/aws-billing-pp-cli",
+  "findings": [
+    {
+      "kind": "missing-read-only",
+      "command": "report",
+      "file": "report.go",
+      "line": 48,
+      "evidence": "name matches read heuristic; no mcp:read-only annotation",
+      "status": "accepted",
+      "note": "Name matches the heuristic but the body mutates: report always writes an HTML/PDF file to disk (os.WriteFile) and, with --post-slack, posts to Slack. A false readOnlyHint:true would tell MCP hosts to skip the permission prompt on a file-writing, Slack-posting command. Annotation deliberately omitted."
+    },
+    {
+      "kind": "thin-short",
+      "command": "version",
+      "file": "root.go",
+      "line": 316,
+      "evidence": "Print version",
+      "status": "accepted",
+      "note": "Standard framework 'version' command (in the MCP framework-skip set, not exposed as an MCP tool); 'Print version' is accurate and complete for the human --help reader"
+    }
+  ],
+  "scorecard_before": {
+    "mcp_description_quality": 10,
+    "captured": "2026-05-29T13:00:10.513998Z"
+  }
+}

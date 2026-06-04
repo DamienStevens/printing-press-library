@@ -1,0 +1,172 @@
+name: aws-billing
+display_name: "AWS Billing Intelligence"
+description: "AWS Cost Management intelligence: pull, break down, compare, and find waste in your AWS bill, consumed natively through the AWS SDK (Cost Explorer, Organizations, EC2, CloudWatch, S3)."
+cli_description: "Understand and trim your AWS bill from the terminal — per-account breakdowns, month-over-month deltas, and dollar-ranked waste, posted to Slack."
+version: "0.1.0"
+# Nominal AWS endpoint; the printed CLI talks to AWS through the AWS SDK for Go v2
+# (SigV4 + native credential chain), not this URL. kind: synthetic relaxes
+# path-validity since every real command is a hand-built SDK call.
+base_url: "https://ce.us-east-1.amazonaws.com"
+kind: synthetic
+category: cloud
+spec_source: docs
+
+# No API key: the AWS SDK resolves credentials from the environment, a shared
+# --profile, SSO, assume-role, or instance metadata, and signs with SigV4.
+auth:
+  type: none
+
+config:
+  format: toml
+  path: "~/.config/aws-billing-pp-cli/config.toml"
+
+# Store-backed resources. data_source_strategy: local routes the generated
+# read commands to the local SQLite store, which the hand-built SDK `sync`
+# populates. The nominal GET paths are store keys, not HTTP calls.
+resources:
+  accounts:
+    description: "AWS Organizations member accounts (id, name, status)"
+    data_source_strategy: local
+    endpoints:
+      list:
+        method: GET
+        path: "/accounts"
+        description: "List synced AWS accounts in the organization"
+        response:
+          type: array
+          item: Account
+      get:
+        method: GET
+        path: "/accounts/{account_id}"
+        description: "Get one synced AWS account"
+        params:
+          - name: account_id
+            type: string
+            required: true
+            positional: true
+            description: "12-digit AWS account ID"
+        response:
+          type: object
+          item: Account
+
+  costs:
+    description: "Synced Cost Explorer cost lines (period x account x service x usage type)"
+    data_source_strategy: local
+    endpoints:
+      list:
+        method: GET
+        path: "/costs"
+        description: "List synced cost lines"
+        params:
+          - name: service
+            type: string
+            description: "Filter by AWS service name"
+          - name: account_id
+            type: string
+            description: "Filter by 12-digit account ID"
+          - name: granularity
+            type: string
+            enum: [DAILY, MONTHLY]
+            description: "Filter by granularity"
+        response:
+          type: array
+          item: CostLine
+
+  inventory:
+    description: "Synced resource inventory used for waste detection (EC2, EBS, snapshots, EIPs, S3)"
+    data_source_strategy: local
+    endpoints:
+      list:
+        method: GET
+        path: "/inventory"
+        description: "List synced resources with estimated monthly cost and waste"
+        params:
+          - name: type
+            type: string
+            description: "Filter by resource type (ec2, ebs, snapshot, eip, s3)"
+          - name: account_id
+            type: string
+            description: "Filter by 12-digit account ID"
+        response:
+          type: array
+          item: InventoryResource
+
+  forecasts:
+    description: "Synced Cost Explorer forecasts"
+    data_source_strategy: local
+    endpoints:
+      list:
+        method: GET
+        path: "/forecasts"
+        description: "List synced cost forecasts"
+        response:
+          type: array
+          item: Forecast
+
+types:
+  Account:
+    fields:
+      - name: account_id
+        type: string
+      - name: name
+        type: string
+      - name: status
+        type: string
+      - name: email
+        type: string
+  CostLine:
+    fields:
+      - name: period_start
+        type: string
+      - name: period_end
+        type: string
+      - name: granularity
+        type: string
+      - name: account_id
+        type: string
+      - name: account_name
+        type: string
+      - name: service
+        type: string
+      - name: region
+        type: string
+      - name: usage_type
+        type: string
+      - name: amount_usd
+        type: float
+      - name: unit
+        type: string
+  InventoryResource:
+    fields:
+      - name: resource_type
+        type: string
+      - name: resource_id
+        type: string
+      - name: account_id
+        type: string
+      - name: region
+        type: string
+      - name: state
+        type: string
+      - name: monthly_cost_usd
+        type: float
+      - name: monthly_waste_usd
+        type: float
+      - name: waste_reason
+        type: string
+      - name: attrs
+        type: string
+  Forecast:
+    fields:
+      - name: period_start
+        type: string
+      - name: period_end
+        type: string
+      - name: account_id
+        type: string
+      - name: mean_usd
+        type: float
+      - name: lower_usd
+        type: float
+      - name: upper_usd
+        type: float

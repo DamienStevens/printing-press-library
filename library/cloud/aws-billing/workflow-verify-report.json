@@ -1,0 +1,8 @@
+{
+  "dir": "\u003ccli-dir\u003e/aws-billing",
+  "workflows": null,
+  "verdict": "workflow-pass",
+  "issues": [
+    "no workflow manifest found, skipping"
+  ]
+}

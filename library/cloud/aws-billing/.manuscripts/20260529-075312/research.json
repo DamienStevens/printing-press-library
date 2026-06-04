@@ -1,0 +1,284 @@
+{
+  "api_name": "aws-billing",
+  "novelty_score": 0,
+  "alternatives": [
+    {
+      "name": "aws-cost-cli",
+      "url": "https://github.com/kamranahmedse/aws-cost-cli",
+      "language": "TypeScript",
+      "install_method": "",
+      "stars": 2500,
+      "last_updated": "",
+      "command_count": 1,
+      "has_json_output": false,
+      "has_auth_support": false
+    },
+    {
+      "name": "ccExplorer",
+      "url": "https://github.com/cduggn/ccExplorer",
+      "language": "Go",
+      "install_method": "",
+      "stars": 80,
+      "last_updated": "",
+      "command_count": 4,
+      "has_json_output": false,
+      "has_auth_support": false
+    },
+    {
+      "name": "aws-doctor",
+      "url": "https://github.com/elC0mpa/aws-doctor",
+      "language": "Go",
+      "install_method": "",
+      "stars": 40,
+      "last_updated": "",
+      "command_count": 5,
+      "has_json_output": false,
+      "has_auth_support": false
+    },
+    {
+      "name": "aws-cost-explorer-mcp-server",
+      "url": "https://github.com/aarora79/aws-cost-explorer-mcp-server",
+      "language": "Python",
+      "install_method": "",
+      "stars": 300,
+      "last_updated": "",
+      "command_count": 6,
+      "has_json_output": false,
+      "has_auth_support": false
+    },
+    {
+      "name": "aws-finops-mcp-server",
+      "url": "https://github.com/ravikiranvm/aws-finops-mcp-server",
+      "language": "Python",
+      "install_method": "",
+      "stars": 120,
+      "last_updated": "",
+      "command_count": 5,
+      "has_json_output": false,
+      "has_auth_support": false
+    }
+  ],
+  "gaps": [],
+  "patterns": [],
+  "recommendation": "proceed",
+  "researched_at": "2026-05-29T07:55:00Z",
+  "novel_features": [
+    {
+      "name": "Tiered IAM onboarding",
+      "command": "iam-setup",
+      "description": "Get from zero to a working billing read-only setup with copy-paste least-privilege policy, a one-click CloudFormation launch-stack, or an admin bootstrap path.",
+      "rationale": "IAM friction is the #1 reason people abandon AWS tools; no incumbent treats least-privilege setup as a first-class, shareable feature.",
+      "example": "aws-billing-pp-cli iam-setup --tier core --format cloudformation",
+      "why_it_matters": "Reach for this first when sharing the tool with someone who has never touched IAM — it produces exactly the permissions this CLI needs and nothing more.",
+      "group": "Onboarding that doesn't make you quit"
+    },
+    {
+      "name": "Permission-aware diagnosis",
+      "command": "doctor",
+      "description": "Probes the AWS credential chain and, on an AccessDenied, names the exact missing ce:/ec2: permission and whether you're in a member vs management account.",
+      "rationale": "Translates raw SDK error codes into the one IAM line to add, keyed to the tiers iam-setup emits.",
+      "example": "aws-billing-pp-cli doctor --json",
+      "why_it_matters": "Run this whenever a command fails with AccessDenied — it tells you precisely what to fix instead of a generic stack trace.",
+      "group": "Onboarding that doesn't make you quit"
+    },
+    {
+      "name": "Per-account + aggregate org rollup",
+      "command": "consolidated",
+      "description": "Shows each linked account's bill with names resolved, the management rollup, and an inline month-over-month delta per account in one view.",
+      "rationale": "Joins the local cost cache against the Organizations account list; a single CE call can't name accounts or inline deltas.",
+      "example": "aws-billing-pp-cli consolidated --period this-month --agent",
+      "why_it_matters": "The fastest answer to 'which account is driving the org bill and is it creeping?'",
+      "group": "Local state that compounds"
+    },
+    {
+      "name": "Dollar-ranked waste rollup",
+      "command": "waste rank",
+      "description": "One table of every idle, orphaned, or over-provisioned resource the hunters found, sorted by estimated monthly dollars wasted, with a grand-total you could save.",
+      "rationale": "Cross-joins synced resource inventory, CloudWatch utilization, and cost lines — no single API call produces a dollar-ranked waste list.",
+      "example": "aws-billing-pp-cli waste rank --agent --select rows.resource_id,rows.monthly_waste_usd",
+      "why_it_matters": "The table to paste into Slack before the monthly bill lands — it turns 'I think we're wasting money' into a ranked, actionable number.",
+      "group": "Waste-first, not upsell-first"
+    },
+    {
+      "name": "gp2 to gp3 modernization savings",
+      "command": "waste gp2-gp3",
+      "description": "Lists gp2 EBS volumes and computes the exact monthly dollars saved by converting each to gp3.",
+      "rationale": "DescribeVolumes returns volumes; only a local price-delta table turns that into per-volume conversion savings.",
+      "example": "aws-billing-pp-cli waste gp2-gp3 --profile-aws the dev member account",
+      "why_it_matters": "A concrete, low-risk savings target you can act on the same day without touching workloads.",
+      "group": "Waste-first, not upsell-first"
+    },
+    {
+      "name": "Data-transfer bleed surface",
+      "command": "waste transfer",
+      "description": "Surfaces the cross-AZ, cross-region, and NAT-gateway data-transfer line items ranked by spend, with the AZ/region pair that's bleeding.",
+      "rationale": "Reads the transfer usage-types out of the synced cost cache and attributes them — raw Cost Explorer returns opaque numbers, not the bleed.",
+      "example": "aws-billing-pp-cli waste transfer --period last-month",
+      "why_it_matters": "Data transfer is the most confusing and most over-looked AWS cost; this names exactly where it's leaking.",
+      "group": "Waste-first, not upsell-first"
+    },
+    {
+      "name": "Deterministic bill Q\u0026A router",
+      "command": "ask",
+      "description": "Answers known questions about your bill (top services, biggest month-over-month mover, per-account total, transfer spend) straight from the local cache; emits the relevant slice as JSON for anything it can't answer directly.",
+      "rationale": "Routes recognized intents to SQLite queries and degrades gracefully to a pipeable JSON slice — works offline, no LLM required for the common cases.",
+      "example": "aws-billing-pp-cli ask \"what changed since last month\" --agent",
+      "why_it_matters": "Lets a non-expert get a plain answer about the bill without learning Cost Explorer's dimension grammar.",
+      "group": "Local state that compounds"
+    }
+  ],
+  "novel_features_built": [
+    {
+      "name": "Tiered IAM onboarding",
+      "command": "iam-setup",
+      "description": "Get from zero to a working billing read-only setup with copy-paste least-privilege policy, a one-click CloudFormation launch-stack, or an admin bootstrap path.",
+      "rationale": "IAM friction is the #1 reason people abandon AWS tools; no incumbent treats least-privilege setup as a first-class, shareable feature.",
+      "example": "aws-billing-pp-cli iam-setup --tier core --format cloudformation",
+      "why_it_matters": "Reach for this first when sharing the tool with someone who has never touched IAM — it produces exactly the permissions this CLI needs and nothing more.",
+      "group": "Onboarding that doesn't make you quit"
+    },
+    {
+      "name": "Permission-aware diagnosis",
+      "command": "doctor",
+      "description": "Probes the AWS credential chain and, on an AccessDenied, names the exact missing ce:/ec2: permission and whether you're in a member vs management account.",
+      "rationale": "Translates raw SDK error codes into the one IAM line to add, keyed to the tiers iam-setup emits.",
+      "example": "aws-billing-pp-cli doctor --json",
+      "why_it_matters": "Run this whenever a command fails with AccessDenied — it tells you precisely what to fix instead of a generic stack trace.",
+      "group": "Onboarding that doesn't make you quit"
+    },
+    {
+      "name": "Per-account + aggregate org rollup",
+      "command": "consolidated",
+      "description": "Shows each linked account's bill with names resolved, the management rollup, and an inline month-over-month delta per account in one view.",
+      "rationale": "Joins the local cost cache against the Organizations account list; a single CE call can't name accounts or inline deltas.",
+      "example": "aws-billing-pp-cli consolidated --period this-month --agent",
+      "why_it_matters": "The fastest answer to 'which account is driving the org bill and is it creeping?'",
+      "group": "Local state that compounds"
+    },
+    {
+      "name": "Dollar-ranked waste rollup",
+      "command": "waste rank",
+      "description": "One table of every idle, orphaned, or over-provisioned resource the hunters found, sorted by estimated monthly dollars wasted, with a grand-total you could save.",
+      "rationale": "Cross-joins synced resource inventory, CloudWatch utilization, and cost lines — no single API call produces a dollar-ranked waste list.",
+      "example": "aws-billing-pp-cli waste rank --agent --select rows.resource_id,rows.monthly_waste_usd",
+      "why_it_matters": "The table to paste into Slack before the monthly bill lands — it turns 'I think we're wasting money' into a ranked, actionable number.",
+      "group": "Waste-first, not upsell-first"
+    },
+    {
+      "name": "gp2 to gp3 modernization savings",
+      "command": "waste gp2-gp3",
+      "description": "Lists gp2 EBS volumes and computes the exact monthly dollars saved by converting each to gp3.",
+      "rationale": "DescribeVolumes returns volumes; only a local price-delta table turns that into per-volume conversion savings.",
+      "example": "aws-billing-pp-cli waste gp2-gp3 --profile-aws the dev member account",
+      "why_it_matters": "A concrete, low-risk savings target you can act on the same day without touching workloads.",
+      "group": "Waste-first, not upsell-first"
+    },
+    {
+      "name": "Data-transfer bleed surface",
+      "command": "waste transfer",
+      "description": "Surfaces the cross-AZ, cross-region, and NAT-gateway data-transfer line items ranked by spend, with the AZ/region pair that's bleeding.",
+      "rationale": "Reads the transfer usage-types out of the synced cost cache and attributes them — raw Cost Explorer returns opaque numbers, not the bleed.",
+      "example": "aws-billing-pp-cli waste transfer --period last-month",
+      "why_it_matters": "Data transfer is the most confusing and most over-looked AWS cost; this names exactly where it's leaking.",
+      "group": "Waste-first, not upsell-first"
+    },
+    {
+      "name": "Deterministic bill Q\u0026A router",
+      "command": "ask",
+      "description": "Answers known questions about your bill (top services, biggest month-over-month mover, per-account total, transfer spend) straight from the local cache; emits the relevant slice as JSON for anything it can't answer directly.",
+      "rationale": "Routes recognized intents to SQLite queries and degrades gracefully to a pipeable JSON slice — works offline, no LLM required for the common cases.",
+      "example": "aws-billing-pp-cli ask \"what changed since last month\" --agent",
+      "why_it_matters": "Lets a non-expert get a plain answer about the bill without learning Cost Explorer's dimension grammar.",
+      "group": "Local state that compounds"
+    }
+  ],
+  "narrative": {
+    "display_name": "AWS Billing Intelligence",
+    "headline": "Get a non-expert from zero to a Slack-delivered, plain-English, waste-flagged AWS bill breakdown — and cache it so you don't pay per Cost Explorer call.",
+    "value_prop": "A self-contained Go binary (native AWS SDK, no aws CLI needed) that pulls your bill, breaks it down per-account and per-service with month-over-month deltas, hunts real waste (idle instances, orphaned volumes, data-transfer bleed) instead of nagging you to buy Reserved Instances, and posts a smart HTML/PDF report to Slack. The headline feature is the part everyone else skips: a tiered least-privilege IAM setup (copy-paste policy, one-click CloudFormation, or admin bootstrap) so you can actually share it with a colleague.",
+    "auth_narrative": "Uses the native AWS credential chain — environment variables, a shared `--profile`, SSO, assume-role, or instance metadata — and signs requests itself (SigV4), so no access keys to paste and no `aws` CLI required. Org-wide cost data lives in the management/payer account; run `iam-setup` to mint exactly the read-only permissions this tool needs, then `doctor` to confirm what's reachable. Resource-level waste scans work in any member account immediately.",
+    "quickstart": [
+      {
+        "command": "aws-billing-pp-cli iam-setup --tier core",
+        "comment": "First: get the least-privilege billing read policy (or a one-click CloudFormation template) to share with whoever holds admin."
+      },
+      {
+        "command": "aws-billing-pp-cli doctor --profile-aws the dev member account",
+        "comment": "Confirm credentials resolve and see exactly which permissions are reachable."
+      },
+      {
+        "command": "aws-billing-pp-cli sync --months 3 --profile-aws the prod member account",
+        "comment": "Pull cost data once into the local cache so later queries don't re-bill Cost Explorer."
+      },
+      {
+        "command": "aws-billing-pp-cli consolidated --period this-month",
+        "comment": "Per-account + aggregate org breakdown with month-over-month deltas."
+      },
+      {
+        "command": "aws-billing-pp-cli waste rank --profile-aws the dev member account",
+        "comment": "Dollar-ranked waste rollup for the account — works without management access."
+      },
+      {
+        "command": "aws-billing-pp-cli report --post-slack --period last-month",
+        "comment": "Render the HTML/PDF report and post the smart breakdown to Slack."
+      }
+    ],
+    "troubleshoots": [
+      {
+        "symptom": "AccessDenied on cost commands",
+        "fix": "Run `doctor` — it names the exact missing ce: permission and whether you're in a member vs management account; `iam-setup --tier core` emits the policy to add."
+      },
+      {
+        "symptom": "Cost commands return empty but resource/waste commands work",
+        "fix": "You're authenticated to a member account; org-wide Cost Explorer data lives in the management account — point `--profile` at a management-account profile."
+      },
+      {
+        "symptom": "Every query costs money / bill from the tool itself",
+        "fix": "Run `sync` once, then query with `--data-source local` (the default after a sync) so reads hit the SQLite cache instead of the $0.01-per-call Cost Explorer API."
+      },
+      {
+        "symptom": "report --post-slack does nothing",
+        "fix": "Posting delegates to `slack-pp-cli`; confirm it's installed and `slack-pp-cli doctor` reports credentials valid, then pass `--slack-channel \u003cid\u003e`."
+      }
+    ],
+    "when_to_use": "Reach for this CLI when someone asks what an AWS bill means, why it changed month-over-month, which linked account is driving spend, or where money is being wasted on idle/orphaned resources. It is the right tool for recurring bill reviews, pre-bill cleanup sweeps, and onboarding a non-expert to read their own AWS costs. It is read-only and waste-focused; it does not buy Reserved Instances or modify any AWS resource.",
+    "recipes": [
+      {
+        "title": "Monday bill-creep check",
+        "command": "aws-billing-pp-cli consolidated --period this-month --agent --select accounts.name,accounts.amount_usd,accounts.delta_pct",
+        "explanation": "Per-account spend with month-over-month delta, narrowed to just the three fields that answer 'is it creeping?'"
+      },
+      {
+        "title": "Pre-bill waste sweep for a dev account",
+        "command": "aws-billing-pp-cli waste rank --profile-aws the dev member account --agent",
+        "explanation": "Dollar-ranked idle/orphaned/over-provisioned resources in the member account, ready to act on before the bill lands."
+      },
+      {
+        "title": "Find the data-transfer bleed",
+        "command": "aws-billing-pp-cli waste transfer --period last-month",
+        "explanation": "Ranks the cross-AZ/region/NAT data-transfer line items so you can see exactly where transfer cost is leaking."
+      },
+      {
+        "title": "Decode a confusing line item",
+        "command": "aws-billing-pp-cli explain EUC1-DataTransfer-Out-Bytes",
+        "explanation": "Plain-English decode of an opaque usage-type string."
+      },
+      {
+        "title": "Auto-report to Slack with attitude",
+        "command": "aws-billing-pp-cli report --post-slack --period last-month --snark",
+        "explanation": "Renders the HTML/PDF breakdown, posts it to Slack, with the opt-in Corey-Quinn voice on the human summary."
+      }
+    ],
+    "trigger_phrases": [
+      "what's my aws bill",
+      "break down my aws costs",
+      "why did my aws bill go up",
+      "find aws waste",
+      "which account is driving my aws spend",
+      "post my aws bill to slack",
+      "set up aws billing access",
+      "use aws-billing",
+      "run aws-billing-pp-cli"
+    ]
+  }
+}
