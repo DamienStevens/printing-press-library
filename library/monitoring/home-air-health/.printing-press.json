@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-05-29T13:38:26.528945Z",
+  "printing_press_version": "4.19.0",
+  "api_name": "home-air-health",
+  "display_name": "Home Health",
+  "cli_name": "home-air-health-pp-cli",
+  "creator": {
+    "handle": "DamienStevens",
+    "name": "Damien Stevens"
+  },
+  "owner": "DamienStevens",
+  "printer": "DamienStevens",
+  "printer_name": "Damien Stevens",
+  "spec_path": "mocreo-legacy-swagger.json",
+  "spec_format": "openapi3",
+  "spec_checksum": "sha256:873c2c143402ada6f7b44b0d0543cd372edbfa92862985c0bb825d9baffc28ab",
+  "run_id": "20260529-075801",
+  "description": "One view of your whole home's air health — radon, mold, particulates, CO2, VOC — aggregated from every sensor on your LAN, with a local history no single vendor app gives you.",
+  "mcp_binary": "home-air-health-pp-mcp",
+  "mcp_tool_count": 13,
+  "mcp_ready": "full",
+  "api_version": "2.0.0",
+  "auth_type": "api_key",
+  "auth_env_vars": [
+    "HOME_HEALTH_SYNCSIGN_AUTH2"
+  ],
+  "novel_features": [
+    {
+      "name": "Whole-home air-health dashboard",
+      "command": "dashboard",
+      "description": "One mold/allergy-focused view of your entire home's air, aggregated across every sensor brand, over any time window."
+    },
+    {
+      "name": "Per-room cross-source trend",
+      "command": "sensor",
+      "description": "Min/avg/max per metric for a single room over a window, regardless of which vendor's sensor covers it."
+    },
+    {
+      "name": "Unified room roster",
+      "command": "rooms",
+      "description": "Every monitored room with its latest snapshot, merged across all sensor brands."
+    }
+  ]
+}

@@ -1,0 +1,122 @@
+{
+  "dir": "\u003ccli-dir\u003e/home-health",
+  "spec_path": "\u003ccli-dir\u003e/spec.json",
+  "spec_source": "bundled",
+  "verdict": "WARN",
+  "path_check": {
+    "tested": 0,
+    "valid": 0,
+    "valid_pct": 0
+  },
+  "auth_check": {
+    "spec_scheme": "",
+    "generated_format": "unknown",
+    "match": true,
+    "detail": "no bot/bearer/basic scheme detected"
+  },
+  "browser_session_check": {
+    "required": false,
+    "pass": true,
+    "detail": "browser-session auth not required"
+  },
+  "oauth_scope_coverage_check": {
+    "checked": 0,
+    "covered": 0,
+    "skipped": true,
+    "detail": "no OAuth-scoped endpoints in spec"
+  },
+  "dead_flags": {
+    "total": 21,
+    "dead": 0
+  },
+  "dead_functions": {
+    "total": 67,
+    "dead": 1,
+    "items": [
+      "classifyDeleteError"
+    ]
+  },
+  "pipeline_check": {
+    "sync_calls_domain": true,
+    "search_calls_domain": false,
+    "domain_tables": 1,
+    "sync_file_emitted": true,
+    "sync_resources_present": true,
+    "detail": "sync uses domain-specific Upsert methods; search uses generic Search only; 1 domain tables found"
+  },
+  "example_check": {
+    "tested": 7,
+    "with_examples": 7,
+    "valid_examples": 7,
+    "detail": "7/7 commands have examples"
+  },
+  "wiring_check": {
+    "command_tree": {
+      "defined": 32,
+      "registered": 32
+    },
+    "config_consistency": {
+      "consistent": true
+    },
+    "workflow_completeness": {
+      "skipped": true,
+      "total_steps": 0,
+      "mapped_steps": 0,
+      "detail": "no workflow_verify.yaml found"
+    }
+  },
+  "novel_features_check": {
+    "planned": 3,
+    "found": 3
+  },
+  "mcp_surface_parity": {
+    "state": "runtime_walking",
+    "pass": true,
+    "detail": "MCP surface mirrors the Cobra tree at runtime"
+  },
+  "reimplementation_check": {
+    "checked": 3,
+    "exempted_via_store": 3,
+    "missing_data_source_strategy": [
+      {
+        "command": "dashboard",
+        "file": "hh_dashboard.go",
+        "reason": "missing // pp:data-source \u003cauto|local|live\u003e annotation"
+      },
+      {
+        "command": "sensor",
+        "file": "hh_rooms.go",
+        "reason": "missing // pp:data-source \u003cauto|local|live\u003e annotation"
+      },
+      {
+        "command": "rooms",
+        "file": "hh_rooms.go",
+        "reason": "missing // pp:data-source \u003cauto|local|live\u003e annotation"
+      }
+    ]
+  },
+  "source_client_check": {
+    "checked": 6
+  },
+  "print_json_filtered_check": {
+    "checked": 23
+  },
+  "test_presence": {
+    "checked": 2,
+    "missing_tests": [
+      "cred",
+      "readings"
+    ]
+  },
+  "naming_check": {
+    "checked": 23
+  },
+  "sync_param_drop_check": {
+    "checked": 0,
+    "skipped": true
+  },
+  "issues": [
+    "1 dead helper functions found",
+    "pure-logic packages with no tests: cred, readings"
+  ]
+}
