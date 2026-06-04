@@ -1,0 +1,56 @@
+{
+  "passed": false,
+  "exit_code": 1,
+  "started_at": "2026-05-28T21:12:57Z",
+  "elapsed_ms": 10655,
+  "legs": [
+    {
+      "name": "verify",
+      "exit_code": 0,
+      "passed": true,
+      "started_at": "2026-05-28T21:12:57Z",
+      "elapsed_ms": 2384,
+      "command": "~/Documents/Dev/cli-printing-press/printing-press verify --dir ~/printing-press/.runstate/cli-printing-press-70e28f12/runs/20260528-162403/working/hubspot-pp-cli --spec tickets.json --fix"
+    },
+    {
+      "name": "validate-narrative",
+      "exit_code": 1,
+      "passed": false,
+      "started_at": "2026-05-28T21:13:00Z",
+      "elapsed_ms": 185,
+      "command": "~/Documents/Dev/cli-printing-press/printing-press validate-narrative --strict --full-examples --research ~/printing-press/.runstate/cli-printing-press-70e28f12/runs/20260528-162403/research.json --binary ~/printing-press/.runstate/cli-printing-press-70e28f12/runs/20260528-162403/working/hubspot-pp-cli/hubspot-pp-cli"
+    },
+    {
+      "name": "dogfood",
+      "exit_code": 0,
+      "passed": true,
+      "started_at": "2026-05-28T21:13:00Z",
+      "elapsed_ms": 2594,
+      "command": "~/Documents/Dev/cli-printing-press/printing-press dogfood --dir ~/printing-press/.runstate/cli-printing-press-70e28f12/runs/20260528-162403/working/hubspot-pp-cli --spec tickets.json --research-dir ~/printing-press/.runstate/cli-printing-press-70e28f12/runs/20260528-162403"
+    },
+    {
+      "name": "workflow-verify",
+      "exit_code": 0,
+      "passed": true,
+      "started_at": "2026-05-28T21:13:02Z",
+      "elapsed_ms": 11,
+      "command": "~/Documents/Dev/cli-printing-press/printing-press workflow-verify --dir ~/printing-press/.runstate/cli-printing-press-70e28f12/runs/20260528-162403/working/hubspot-pp-cli"
+    },
+    {
+      "name": "verify-skill",
+      "exit_code": 0,
+      "passed": true,
+      "started_at": "2026-05-28T21:13:02Z",
+      "elapsed_ms": 4510,
+      "command": "~/Documents/Dev/cli-printing-press/printing-press verify-skill --dir ~/printing-press/.runstate/cli-printing-press-70e28f12/runs/20260528-162403/working/hubspot-pp-cli"
+    },
+    {
+      "name": "scorecard",
+      "exit_code": 0,
+      "passed": true,
+      "started_at": "2026-05-28T21:13:07Z",
+      "elapsed_ms": 966,
+      "command": "~/Documents/Dev/cli-printing-press/printing-press scorecard --dir ~/printing-press/.runstate/cli-printing-press-70e28f12/runs/20260528-162403/working/hubspot-pp-cli --research-dir ~/printing-press/.runstate/cli-printing-press-70e28f12/runs/20260528-162403 --spec tickets.json"
+    }
+  ]
+}
