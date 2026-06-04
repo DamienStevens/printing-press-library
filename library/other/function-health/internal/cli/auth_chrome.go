@@ -36,8 +36,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newAuthLoginChromeFlow(flags *rootFlags, cfg *config.Config, profile string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+func newAuthLoginChromeFlow(parent context.Context, flags *rootFlags, cfg *config.Config, profile string) error {
+	// Root the timeout at the command's context so Ctrl+C cancels the whole
+	// Chrome flow instead of leaving it running until its own 90s budget.
+	ctx, cancel := context.WithTimeout(parent, 90*time.Second)
 	defer cancel()
 
 	if err := requireChromeClosed(); err != nil {
@@ -60,7 +62,9 @@ func newAuthLoginChromeFlow(flags *rootFlags, cfg *config.Config, profile string
 
 	// Wait for the SPA to hydrate Firebase into IndexedDB. Firebase JS SDK
 	// init can take 5-15s on cold open of a profile.
-	time.Sleep(8 * time.Second)
+	if err := sleepOrDone(ctx, 8*time.Second); err != nil {
+		return err
+	}
 
 	kickJS := `
 window.__fh_token = 'pending';
@@ -98,7 +102,9 @@ req.onerror = function(){ window.__fh_token = 'OPEN_ERROR'; };
 		if err := runUVXBrowserUse(ctx, []string{"--session", "fh-auth-login", "eval", kickJS}); err != nil {
 			return fmt.Errorf("install IndexedDB reader: %w", err)
 		}
-		time.Sleep(2 * time.Second)
+		if err := sleepOrDone(ctx, 2*time.Second); err != nil {
+			return err
+		}
 		o, err := runUVXBrowserUseStdout(ctx, []string{"--session", "fh-auth-login", "eval", "window.__fh_token"})
 		if err != nil {
 			return fmt.Errorf("read IndexedDB result: %w", err)
@@ -113,7 +119,9 @@ req.onerror = function(){ window.__fh_token = 'OPEN_ERROR'; };
 		}
 		// Click any visible element to make sure Firebase finishes init.
 		_ = runUVXBrowserUse(ctx, []string{"--session", "fh-auth-login", "scroll", "down"})
-		time.Sleep(2 * time.Second)
+		if err := sleepOrDone(ctx, 2*time.Second); err != nil {
+			return err
+		}
 	}
 	if strings.HasPrefix(out, "pending") || strings.HasPrefix(out, "NO_STORES") ||
 		strings.HasPrefix(out, "NO_AUTH_ENTRY") || strings.HasPrefix(out, "GETALL_ERROR") || strings.HasPrefix(out, "OPEN_ERROR") {
@@ -176,6 +184,20 @@ func requireChromeClosed() error {
 	return nil
 }
 
+// sleepOrDone waits for d to elapse, returning early with the context's error
+// if it is cancelled first (e.g. the user pressed Ctrl+C). Bare time.Sleep
+// would ignore cancellation and keep the flow blocked for the full duration.
+func sleepOrDone(ctx context.Context, d time.Duration) error {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return nil
+	}
+}
+
 func runUVXBrowserUse(ctx context.Context, args []string) error {
 	cmd := exec.CommandContext(ctx, "uvx", append([]string{"browser-use"}, args...)...)
 	out, err := cmd.CombinedOutput()
@@ -202,7 +224,7 @@ func extendAuthLoginWithChrome(cmd *cobra.Command, flags *rootFlags) {
 
 	prevRun := cmd.RunE
 	cmd.Flags().BoolVar(&useChrome, "chrome", false, "Extract the Firebase idToken from your Chrome profile (no password needed; bypasses Function Health's REST-password block)")
-	cmd.Flags().StringVar(&chromeProfile, "chrome-profile", "Person 1", "Browser-use Chrome profile name (default 'Person 1' on macOS)")
+	cmd.Flags().StringVar(&chromeProfile, "chrome-profile", "Default", "Chrome profile directory to load. Chrome's first/only profile is 'Default'; additional profiles are 'Profile 1', 'Profile 2', … (the display name 'Person 1' is the *second* profile's directory 'Profile 1')")
 
 	cmd.RunE = func(c *cobra.Command, args []string) error {
 		if useChrome {
@@ -213,7 +235,7 @@ func extendAuthLoginWithChrome(cmd *cobra.Command, flags *rootFlags) {
 			if err != nil {
 				return configErr(err)
 			}
-			if err := newAuthLoginChromeFlow(flags, cfg, chromeProfile); err != nil {
+			if err := newAuthLoginChromeFlow(c.Context(), flags, cfg, chromeProfile); err != nil {
 				return authErr(err)
 			}
 			fmt.Fprintf(c.OutOrStdout(),

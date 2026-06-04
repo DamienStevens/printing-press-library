@@ -57,6 +57,25 @@ func TestOptimalCrossings(t *testing.T) {
 			series:        []resultRow{draw(100, 50, 150), draw(120, 50, 150)},
 			wantCrossings: 0, wantDefined: 2,
 		},
+		{
+			// THE BOUNDARY-CROSSING BUG: above → in-range → above crosses the
+			// upper optimal boundary twice. Pre-fix, in-range draws were treated
+			// as transparent (sign 0 skipped both transitions) and this counted
+			// 0 — the canonical "managed on/off a supplement" oscillation.
+			name:          "above to in-range to above counts in/out crossings",
+			series:        []resultRow{draw(200, 50, 150), draw(100, 50, 150), draw(200, 50, 150)},
+			wantCrossings: 2, wantDefined: 3,
+		},
+		{
+			name:          "in-range to below to in-range counts two crossings",
+			series:        []resultRow{draw(100, 50, 150), draw(10, 50, 150), draw(100, 50, 150)},
+			wantCrossings: 2, wantDefined: 3,
+		},
+		{
+			name:          "single in/out crossing counts once",
+			series:        []resultRow{draw(100, 50, 150), draw(200, 50, 150)},
+			wantCrossings: 1, wantDefined: 2,
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

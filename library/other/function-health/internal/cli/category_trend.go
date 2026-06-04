@@ -44,70 +44,22 @@ func newNovelCategoryTrendCmd(flags *rootFlags) *cobra.Command {
 				return noStoreData("category trend")
 			}
 
-			type roundAgg struct {
-				DrawDate  string
-				Total     int
-				InOptimal int
-			}
-			byRound := map[string]*roundAgg{}
-			matched := 0
-			for _, r := range rows {
-				if !strings.Contains(strings.ToLower(r.Category), query) {
-					continue
-				}
-				matched++
-				key := r.RequisitionID
-				a, ok := byRound[key]
-				if !ok {
-					a = &roundAgg{DrawDate: formatDrawDate(r.DrawDate)}
-					byRound[key] = a
-				}
-				if a.DrawDate == "" {
-					a.DrawDate = formatDrawDate(r.DrawDate)
-				}
-				a.Total++
-				if optimalSign(r) == 0 && (r.OptimalLow > 0 || r.OptimalHigh > 0) {
-					a.InOptimal++
-				}
-			}
-			if matched == 0 {
+			points, distinct := aggregateCategoryTrend(rows, query)
+			if len(points) == 0 {
 				return notFoundErr(fmt.Errorf("no synced biomarkers matched category %q", query))
 			}
-
-			type point struct {
-				RequisitionID  string  `json:"requisition_id"`
-				DrawDate       string  `json:"draw_date"`
-				Total          int     `json:"total_biomarkers"`
-				InOptimal      int     `json:"in_optimal"`
-				PercentOptimal float64 `json:"percent_optimal"`
-			}
-			var points []point
-			for id, a := range byRound {
-				pct := 0.0
-				if a.Total > 0 {
-					pct = float64(a.InOptimal) / float64(a.Total) * 100
-				}
-				points = append(points, point{
-					RequisitionID:  id,
-					DrawDate:       a.DrawDate,
-					Total:          a.Total,
-					InOptimal:      a.InOptimal,
-					PercentOptimal: pct,
-				})
-			}
-			sort.Slice(points, func(i, j int) bool { return points[i].DrawDate < points[j].DrawDate })
 
 			result := map[string]any{
 				"category":        query,
 				"rounds":          len(points),
 				"history":         points,
-				"biomarkers_used": matched,
+				"biomarkers_used": distinct,
 			}
 			if flags != nil && flags.asJSON {
 				return flags.printJSON(cmd, result)
 			}
 			w := cmd.OutOrStdout()
-			fmt.Fprintf(w, "Category trend for %q (%d biomarkers across %d rounds):\n", query, matched, len(points))
+			fmt.Fprintf(w, "Category trend for %q (%d biomarkers across %d rounds):\n", query, distinct, len(points))
 			for _, p := range points {
 				bar := percentBar(p.PercentOptimal, 24)
 				fmt.Fprintf(w, "  %-10s  %3d/%-3d in-optimal  %5.1f%%  %s\n",
@@ -118,6 +70,56 @@ func newNovelCategoryTrendCmd(flags *rootFlags) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&dbPath, "db", "", "Override local database path")
 	return cmd
+}
+
+// categoryRoundPoint is one requisition round's percent-in-optimal score for a
+// category.
+type categoryRoundPoint struct {
+	RequisitionID  string  `json:"requisition_id"`
+	DrawDate       string  `json:"draw_date"`
+	Total          int     `json:"total_biomarkers"`
+	InOptimal      int     `json:"in_optimal"`
+	PercentOptimal float64 `json:"percent_optimal"`
+}
+
+// aggregateCategoryTrend buckets every draw whose category substring-matches
+// query into per-requisition rounds (sorted oldest→newest) and returns them
+// alongside the count of DISTINCT biomarkers that contributed. The distinct
+// count — not the draw-row total — is what `biomarkers_used` reports: a
+// biomarker measured across N rounds must count once, not N times, or the
+// number balloons to (biomarker_count × round_count).
+func aggregateCategoryTrend(rows []resultRow, query string) (points []categoryRoundPoint, distinctBiomarkers int) {
+	byRound := map[string]*categoryRoundPoint{}
+	biomarkers := map[string]bool{}
+	for _, r := range rows {
+		if !strings.Contains(strings.ToLower(r.Category), query) {
+			continue
+		}
+		if k := biomarkerKey(r); k != "" {
+			biomarkers[k] = true
+		}
+		key := r.RequisitionID
+		a, ok := byRound[key]
+		if !ok {
+			a = &categoryRoundPoint{RequisitionID: key, DrawDate: formatDrawDate(r.DrawDate)}
+			byRound[key] = a
+		}
+		if a.DrawDate == "" {
+			a.DrawDate = formatDrawDate(r.DrawDate)
+		}
+		a.Total++
+		if optimalSign(r) == 0 && hasOptimal(r) {
+			a.InOptimal++
+		}
+	}
+	for _, a := range byRound {
+		if a.Total > 0 {
+			a.PercentOptimal = float64(a.InOptimal) / float64(a.Total) * 100
+		}
+		points = append(points, *a)
+	}
+	sort.Slice(points, func(i, j int) bool { return points[i].DrawDate < points[j].DrawDate })
+	return points, len(biomarkers)
 }
 
 func percentBar(pct float64, width int) string {

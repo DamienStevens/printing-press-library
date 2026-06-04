@@ -112,6 +112,13 @@ func newNovelBiomarkersOscillatingCmd(flags *rootFlags) *cobra.Command {
 // "in range" and "no optimal range defined", so feeding raw draws to the
 // crossing counter let an undefined-optimal draw absorb a real above->below
 // crossing and silently under-report oscillation.
+//
+// A crossing is ANY change in classification between consecutive defined draws,
+// including in-range↔out-of-range transitions — not just above↔below flips.
+// The command's contract is "crossed in/out of Function's optimal range", so a
+// biomarker cycling above → in-range → above (managed on/off a supplement) must
+// register each boundary crossing rather than being treated as stable because
+// the in-range draws were transparent.
 func optimalCrossings(series []resultRow) (crossings int, defined []resultRow) {
 	defined = make([]resultRow, 0, len(series))
 	for _, r := range series {
@@ -125,10 +132,6 @@ func optimalCrossings(series []resultRow) (crossings int, defined []resultRow) {
 	prevSign := optimalSign(defined[0])
 	for i := 1; i < len(defined); i++ {
 		s := optimalSign(defined[i])
-		if s == 0 || prevSign == 0 {
-			prevSign = s
-			continue
-		}
 		if s != prevSign {
 			crossings++
 		}

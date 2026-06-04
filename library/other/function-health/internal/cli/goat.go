@@ -69,10 +69,7 @@ func newNovelGoatCmd(flags *rootFlags) *cobra.Command {
 				if d == 0 && drift == 0 {
 					continue
 				}
-				score := d * math.Max(0, drift)
-				if score == 0 {
-					score = d * 0.1 // baseline weight when slope is flat
-				}
+				score := goatScore(d, drift)
 				results = append(results, scored{
 					Biomarker:     name,
 					BiomarkerID:   latest.BiomarkerID,
@@ -116,4 +113,16 @@ func newNovelGoatCmd(flags *rootFlags) *cobra.Command {
 	cmd.Flags().IntVar(&topN, "top", 1, "How many top-ranked biomarkers to return (1 = the goat)")
 	cmd.Flags().StringVar(&dbPath, "db", "", "Override local database path")
 	return cmd
+}
+
+// goatScore weights a biomarker's distance from its Function-optimal midpoint by
+// how fast it is drifting away. Drift toward optimal (negative) is clamped to
+// zero so only worsening trends amplify the score; a perfectly flat slope still
+// earns a small baseline weight so a far-but-stable biomarker can rank.
+func goatScore(distance, drift float64) float64 {
+	score := distance * math.Max(0, drift)
+	if score == 0 {
+		score = distance * 0.1 // baseline weight when slope is flat
+	}
+	return score
 }

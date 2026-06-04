@@ -368,11 +368,14 @@ func countDistinctBiomarkers(rows []resultRow) int {
 }
 
 func countOutOfRange(rows []resultRow) int {
-	// Count the most recent draw per biomarker that's out-of-optimal.
+	// Count the most recent draw per biomarker that's out-of-optimal. Key on
+	// biomarkerKey (name, falling back to ID) so unnamed biomarkers don't all
+	// collapse into a single "" bucket and undercount the summary.
 	latest := map[string]resultRow{}
 	for _, r := range rows {
-		if existing, ok := latest[r.BiomarkerName]; !ok || r.DrawDate > existing.DrawDate {
-			latest[r.BiomarkerName] = r
+		k := biomarkerKey(r)
+		if existing, ok := latest[k]; !ok || r.DrawDate > existing.DrawDate {
+			latest[k] = r
 		}
 	}
 	n := 0

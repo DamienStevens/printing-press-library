@@ -77,6 +77,26 @@ func TestFilterResultRowsOutOfRangeUsesLatestDraw(t *testing.T) {
 	}
 }
 
+func TestCountOutOfRange(t *testing.T) {
+	// fixtureRows: Iron latest above (out), ApoB in-optimal, ALT below (out).
+	if got := countOutOfRange(fixtureRows()); got != 2 {
+		t.Errorf("countOutOfRange(fixtureRows) = %d, want 2", got)
+	}
+}
+
+func TestCountOutOfRangeUnnamedBiomarkersDoNotCollapse(t *testing.T) {
+	// Two distinct out-of-optimal biomarkers carrying only an ID (no name) must
+	// not collapse into a single "" bucket — that would undercount to 1.
+	rows := []resultRow{
+		{BiomarkerID: "id-a", DrawDate: "2024-01-01", Value: 200, OptimalLow: 50, OptimalHigh: 150}, // above
+		{BiomarkerID: "id-b", DrawDate: "2024-01-01", Value: 5, OptimalLow: 10, OptimalHigh: 40},     // below
+		{BiomarkerID: "id-c", BiomarkerName: "ApoB", DrawDate: "2024-01-01", Value: 70, OptimalLow: 0, OptimalHigh: 90}, // in-optimal
+	}
+	if got := countOutOfRange(rows); got != 2 {
+		t.Errorf("countOutOfRange with unnamed biomarkers = %d, want 2", got)
+	}
+}
+
 func TestPdfScopeLabel(t *testing.T) {
 	cases := []struct {
 		oor     bool

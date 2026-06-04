@@ -243,12 +243,15 @@ func extractResultRows(raw []byte, catName map[string]string) []resultRow {
 				return
 			}
 			status := "in-range"
+			direction := "in"
 			if outOfRange {
 				status = "out-of-range"
-			}
-			direction := "in"
-			if rec.OutOfRangeType != "" && rec.OutOfRangeType != "in_range" {
-				direction = strings.TrimSuffix(rec.OutOfRangeType, "_range")
+				// Classify THIS draw's direction from its own value rather than
+				// the biomarker's current outOfRangeType. rec.OutOfRangeType
+				// describes only the latest round, so stamping it onto every
+				// historical draw mislabels any biomarker that has crossed sides
+				// over time (e.g. below_range two draws ago, above_range now).
+				direction = outOfRangeDirection(v, rangeLow, rangeHigh, optimalLow, optimalHigh, rec.OutOfRangeType)
 			}
 			out = append(out, resultRow{
 				BiomarkerID: biomarkerID, QuestCode: questCode, BiomarkerName: biomarkerName, Category: categoryName,
@@ -274,6 +277,29 @@ func extractResultRows(raw []byte, catName map[string]string) []resultRow {
 		}
 	}
 	return out
+}
+
+// outOfRangeDirection classifies a single out-of-range draw as "above" or
+// "below" from that draw's own value, preferring the biomarker's reference
+// (Quest) range, then the Function-optimal range, and only falling back to the
+// record-level outOfRangeType when no numeric bounds are available. This keeps
+// each historical draw's direction tied to that draw instead of the most recent
+// round (which is all rec.OutOfRangeType reflects).
+func outOfRangeDirection(v, rangeLow, rangeHigh, optimalLow, optimalHigh float64, recordType string) string {
+	switch {
+	case rangeHigh > 0 && v > rangeHigh:
+		return "above"
+	case rangeLow > 0 && v < rangeLow:
+		return "below"
+	case optimalHigh > 0 && v > optimalHigh:
+		return "above"
+	case optimalLow > 0 && v < optimalLow:
+		return "below"
+	case recordType != "" && recordType != "in_range":
+		return strings.TrimSuffix(recordType, "_range")
+	default:
+		return "out"
+	}
 }
 
 // parseFloat tolerates the Function Health convention of string-encoded

@@ -113,7 +113,7 @@ environment to override the stored credential for one-shot use (CI, scripts).`,
 		},
 	}
 	cmd.Flags().StringVar(&email, "email", "", "Function Health email (or set FH_EMAIL)")
-	cmd.Flags().StringVar(&password, "password", "", "Function Health password (or set FH_PASSWORD)")
+	cmd.Flags().StringVar(&password, "password", "", "Function Health password. WARNING: a value passed here is visible in `ps`/process listings and your shell history — prefer FH_PASSWORD or the interactive prompt (omit the flag)")
 	return cmd
 }
 
