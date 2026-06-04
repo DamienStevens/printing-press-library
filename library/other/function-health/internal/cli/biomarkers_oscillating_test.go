@@ -107,3 +107,24 @@ func TestOptimalSignUnchanged(t *testing.T) {
 		t.Error("below optimal should be sign -1")
 	}
 }
+
+func TestOptimalSignSingleBound(t *testing.T) {
+	// Only a lower optimal bound (OptimalHigh == 0): a value above the floor is
+	// in-range (0), never "above" (+1). This is the latent misclassification the
+	// unguarded `Value > OptimalHigh` comparison produced for lower-bound-only
+	// biomarkers.
+	if got := optimalSign(draw(100, 50, 0)); got != 0 {
+		t.Errorf("value above a lower-only bound = %d, want 0 (in-range)", got)
+	}
+	if got := optimalSign(draw(40, 50, 0)); got != -1 {
+		t.Errorf("value below a lower-only bound = %d, want -1", got)
+	}
+	// Only an upper optimal bound (OptimalLow == 0): below the ceiling is
+	// in-range, above it is +1.
+	if got := optimalSign(draw(100, 0, 150)); got != 0 {
+		t.Errorf("value below an upper-only bound = %d, want 0 (in-range)", got)
+	}
+	if got := optimalSign(draw(200, 0, 150)); got != 1 {
+		t.Errorf("value above an upper-only bound = %d, want 1", got)
+	}
+}

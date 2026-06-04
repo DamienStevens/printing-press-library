@@ -150,15 +150,15 @@ func hasOptimal(r resultRow) bool {
 }
 
 // optimalSign returns +1 above optimal high, -1 below optimal low, 0 in range
-// (or undefined optimal). Used to detect crossings across rounds.
+// (or undefined optimal). Each comparison is guarded on its bound being set, so
+// a biomarker that supplies only a lower bound (OptimalHigh == 0) is never
+// flagged "above" for an arbitrary positive value — it can only be in-range or
+// below. Used to detect crossings across rounds.
 func optimalSign(r resultRow) int {
-	if r.OptimalLow == 0 && r.OptimalHigh == 0 {
-		return 0
-	}
-	if r.Value > r.OptimalHigh {
+	if r.OptimalHigh > 0 && r.Value > r.OptimalHigh {
 		return 1
 	}
-	if r.Value < r.OptimalLow {
+	if r.OptimalLow > 0 && r.Value < r.OptimalLow {
 		return -1
 	}
 	return 0
