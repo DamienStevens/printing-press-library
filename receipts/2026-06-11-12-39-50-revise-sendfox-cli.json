@@ -4,7 +4,7 @@
   "repo": "/Users/knox/Developer/PrintingPress/printing-press-library-sendfox",
   "branch": "feat/sendfox-cli",
   "pr": "https://github.com/mvanhorn/printing-press-library/pull/1150",
-  "summary": "Updated PR body to the printed CLI template with CLI shape, reviewed PR #1149 comments for the capabilities/dashboard-handoff pattern, and added more SendFox-specific novel agent commands around capability discovery, hygiene, launch planning, CSV audit/reconciliation, and webhook handoffs.",
+  "summary": "Updated PR title/body to the canonical printed CLI template with CLI shape, reviewed PR #1149 comments for the capabilities/dashboard-handoff pattern, added more SendFox-specific novel agent commands, and fixed Greptile review findings around auth env guidance, logout warnings, canonical signup-form env var, pagination truncation, and dogfood-results packaging.",
   "new_commands": [
     "capabilities",
     "contacts audit-csv",
@@ -12,6 +12,14 @@
     "workflow hygiene-report",
     "workflow launch-plan",
     "webhooks handoff"
+  ],
+  "review_fixes": [
+    "auth setup/status now steer users to SENDFOX_API_TOKEN",
+    "auth logout warns if SENDFOX_API_TOKEN remains exported",
+    "forms generate server-handler comment references SENDFOX_API_TOKEN",
+    "sendfoxFetchAll no longer stops after a short page without explicit pagination metadata",
+    "dogfood-results.json added",
+    "PR title changed to feat(sendfox): add sendfox"
   ],
   "validation": [
     "go test ./... (library/marketing/sendfox)",

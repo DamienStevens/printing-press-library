@@ -117,8 +117,10 @@ func sendfoxFetchAll(c *client.Client, ctx context.Context, path string, params 
 		if len(items) == 0 {
 			break
 		}
-		// Most SendFox accounts are small; if no obvious pagination links are
-		// present, avoid speculative extra pages after a short page.
+		// Prefer explicit pagination metadata when SendFox includes it. If no
+		// metadata is present, keep fetching until an empty page or maxPages;
+		// default SendFox page sizes can be far below 100, so a short page alone
+		// is not a reliable end-of-collection signal.
 		var obj map[string]any
 		if json.Unmarshal(raw, &obj) == nil {
 			if _, hasNext := obj["next_page_url"]; hasNext {
@@ -136,9 +138,6 @@ func sendfoxFetchAll(c *client.Client, ctx context.Context, path string, params 
 					break
 				}
 			}
-		}
-		if len(items) < 100 {
-			break
 		}
 	}
 	return out, nil
