@@ -3,17 +3,23 @@
   "action": "create-sendfox-printing-press-cli",
   "repo": "/Users/knox/Developer/PrintingPress/printing-press-library-sendfox",
   "branch": "feat/sendfox-cli",
-  "summary": "Generated a SendFox Printing Press CLI from curated official HelpScout docs/OpenAPI, added SendFox-specific compound commands, mirrored pp-sendfox skill, and regenerated catalog registry/README.",
+  "pr": "https://github.com/mvanhorn/printing-press-library/pull/1150",
+  "head_sha": "b05d166ecc090653c2b3798f16ff69159b1a220a",
+  "summary": "Generated a SendFox Printing Press CLI from curated official HelpScout docs/OpenAPI and added SendFox-specific compound commands. Generated registry/cli-skill artifacts were intentionally removed from the PR because CI regenerates them post-merge.",
   "validation": [
     "go test ./... (library/marketing/sendfox)",
     "go vet ./... (library/marketing/sendfox)",
     "go build ./... (library/marketing/sendfox)",
     "python3 ../../../.github/scripts/verify-skill/verify_skill.py --dir .",
+    "python3 ../../../.github/scripts/verify-manifest/verify_manifest.py",
+    "python3 .github/scripts/verify-publish-package/verify_publish_package.py --base-ref upstream/main",
     "cli dry-run smoke: workflow account-snapshot, contacts onboard, forms generate",
-    "cli-printing-press publish validate --dir library/marketing/sendfox --json: passed"
+    "cli-printing-press publish validate --dir library/marketing/sendfox --json: passed",
+    "GitHub CI: Govulncheck, Scan, Verify library conventions, Verify manifest.json, Verify SKILL.md passed; Greptile Review/policy gate still pending at receipt update"
   ],
   "notes": [
     "Live SendFox API smoke was skipped: no credential was available without prompting for secret access; dry-run and generated verify gates passed.",
-    "SENDFOX_API_TOKEN is the preferred auth env var; generated SENDFOX_BEARER_AUTH remains supported as an alias."
+    "SENDFOX_API_TOKEN is the preferred auth env var; generated SENDFOX_BEARER_AUTH remains supported as an alias.",
+    "Used normal pushes only; no force-push."
   ]
 }
