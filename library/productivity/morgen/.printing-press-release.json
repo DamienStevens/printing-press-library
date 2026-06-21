@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "slug": "morgen",
+  "cli_name": "morgen-pp-cli",
+  "version": "2026.6.1",
+  "released_at": "2026-06-21T07:51:46Z",
+  "source_commit": "bdbb840249b10e49d9c6eab87f6b5701cbc91609",
+  "printing_press_version": "4.16.0",
+  "run_id": "20260615-105603",
+  "changes": [
+    {
+      "title": "feat(morgen): add morgen",
+      "pr": 1265,
+      "url": "https://github.com/mvanhorn/printing-press-library/pull/1265",
+      "commit": "bdbb840249b10e49d9c6eab87f6b5701cbc91609"
+    }
+  ]
+}
