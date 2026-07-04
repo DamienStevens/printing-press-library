@@ -46,7 +46,14 @@ func newNovelStatusCmd(flags *rootFlags) *cobra.Command {
 				fmt.Fprintf(cmd.ErrOrStderr(), "taskrabbit: %v\n", err)
 			} else {
 				tr := taskrabbit.New(c)
-				bookings, err := listAllBookings(cmd.Context(), tr)
+				// --open scopes the TaskRabbit listing to active bookings too, not
+				// just the Magic side; without this filter status --open returns all
+				// historical bookings.
+				trFilter := map[string]any{}
+				if flagOpen {
+					trFilter["status"] = "active"
+				}
+				bookings, err := listAllBookings(cmd.Context(), tr, trFilter)
 				if err != nil {
 					fmt.Fprintf(cmd.ErrOrStderr(), "taskrabbit: %v\n", err)
 				} else {
@@ -90,12 +97,12 @@ func newNovelStatusCmd(flags *rootFlags) *cobra.Command {
 
 // listAllBookings pages through TaskRabbit bookings so status is not capped at
 // the first page. Bounded so a paging bug can't loop forever.
-func listAllBookings(ctx context.Context, tr *taskrabbit.Client) ([]taskrabbit.Booking, error) {
+func listAllBookings(ctx context.Context, tr *taskrabbit.Client, filter map[string]any) ([]taskrabbit.Booking, error) {
 	const perPage = 50
 	const maxPages = 40
 	var all []taskrabbit.Booking
 	for page := 1; page <= maxPages; page++ {
-		batch, err := tr.ListTasks(ctx, page, perPage, map[string]any{}, "en-US")
+		batch, err := tr.ListTasks(ctx, page, perPage, filter, "en-US")
 		if err != nil {
 			return nil, err
 		}

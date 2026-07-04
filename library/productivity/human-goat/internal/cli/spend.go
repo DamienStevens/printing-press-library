@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"sort"
 	"strconv"
@@ -246,17 +247,63 @@ func spendStringValue(value any) string {
 	}
 }
 
-// spendAmountCentsForRow resolves the spend amount for a row, applying the
-// TaskRabbit all-in fee transform (service + trust-and-support fees) to the
-// stored base hourly rate so TaskRabbit rows report the effective all-in figure
-// the command advertises, rather than the pre-fee base or zero.
+// spendAmountCentsForRow resolves the spend amount for a row. An explicit
+// billed/all-in amount (e.g. an invoice row's real total) always wins so a rate
+// estimate never shadows a known charge. Only when no explicit amount exists
+// does it estimate a TaskRabbit booking's all-in total: base hourly rate ->
+// all-in fee transform -> multiplied by the booked duration (so multi-hour
+// bookings are not counted at a single hour).
 func spendAmountCentsForRow(row spendResourceRow, decoded any) (int, bool) {
+	if cents, ok := findSpendAmountCents(decoded); ok {
+		return cents, true
+	}
 	if row.ResourceType != "magic" {
 		if base, ok := findPosterHourlyRateCents(decoded); ok {
-			return pricing.AllIn(base, "").AllInCents, true
+			allInHourly := pricing.AllIn(base, "").AllInCents
+			hours := findBookingHours(decoded)
+			return int(math.Round(float64(allInHourly) * hours)), true
 		}
 	}
-	return findSpendAmountCents(decoded)
+	return 0, false
+}
+
+// findBookingHours derives a TaskRabbit booking's billable hours from a
+// duration_seconds or hours field, defaulting to 1 hour (the TaskRabbit
+// minimum billing unit) when neither is present.
+func findBookingHours(value any) float64 {
+	if secs, ok := findNumericField(value, "duration_seconds"); ok && secs > 0 {
+		if h := secs / 3600.0; h >= 1 {
+			return h
+		}
+	}
+	if h, ok := findNumericField(value, "hours"); ok && h >= 1 {
+		return h
+	}
+	return 1
+}
+
+// findNumericField recursively finds the first numeric value for key.
+func findNumericField(value any, key string) (float64, bool) {
+	switch v := value.(type) {
+	case map[string]any:
+		if item, ok := v[key]; ok {
+			if raw, _, ok := spendNumericValue(item); ok {
+				return raw, true
+			}
+		}
+		for _, item := range v {
+			if raw, ok := findNumericField(item, key); ok {
+				return raw, true
+			}
+		}
+	case []any:
+		for _, item := range v {
+			if raw, ok := findNumericField(item, key); ok {
+				return raw, true
+			}
+		}
+	}
+	return 0, false
 }
 
 // findPosterHourlyRateCents extracts a TaskRabbit poster_hourly_rate_cents value
