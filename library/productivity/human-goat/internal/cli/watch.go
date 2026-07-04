@@ -6,6 +6,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -66,7 +67,19 @@ func newNovelWatchCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			category, err := resolveTaskRabbitCategory(cmd.Context(), c, query)
+
+			// Bind the poll context to the --max-wait deadline so a hung API call
+			// inside the loop is cancelled at the deadline, not just checked
+			// between polls.
+			deadline := time.Now().Add(flagMaxWait)
+			pollCtx := cmd.Context()
+			if flagMaxWait > 0 {
+				var cancel context.CancelFunc
+				pollCtx, cancel = context.WithDeadline(cmd.Context(), deadline)
+				defer cancel()
+			}
+
+			category, err := resolveTaskRabbitCategory(pollCtx, c, query)
 			if err != nil {
 				return classifyAPIError(err, flags)
 			}
@@ -81,9 +94,8 @@ func newNovelWatchCmd(flags *rootFlags) *cobra.Command {
 				Limit:     flagLimit,
 			}
 
-			deadline := time.Now().Add(flagMaxWait)
 			for {
-				rows, err := rankedTaskRabbitRecommendations(cmd.Context(), tr, category, opts)
+				rows, err := rankedTaskRabbitRecommendations(pollCtx, tr, category, opts)
 				if err != nil {
 					return classifyAPIError(err, flags)
 				}
@@ -103,14 +115,14 @@ func newNovelWatchCmd(flags *rootFlags) *cobra.Command {
 				}
 				timer := time.NewTimer(wait)
 				select {
-				case <-cmd.Context().Done():
+				case <-pollCtx.Done():
 					if !timer.Stop() {
 						select {
 						case <-timer.C:
 						default:
 						}
 					}
-					return cmd.Context().Err()
+					return pollCtx.Err()
 				case <-timer.C:
 				}
 			}

@@ -213,12 +213,23 @@ func newNovelHireCmd(flags *rootFlags) *cobra.Command {
 				return classifyAPIError(fmt.Errorf("hire TaskRabbit booking: %w", err), flags)
 			}
 
-			return printHireBookedResult(cmd, flags, hireBookedResult{
-				Booked:     true,
-				Tasker:     taskerDisplayName(best),
-				AllInTotal: pricing.FormatCents(totalCents),
-				JobID:      hireJobID(body),
-			})
+			booked := hireBookedResult{
+				Booked:        true,
+				Tasker:        taskerDisplayName(best),
+				AllInTotal:    pricing.FormatCents(totalCents),
+				JobID:         hireJobID(body),
+				RequestedDate: date,
+				Date:          slotDate,
+				SlotLabel:     slotLabel,
+			}
+			// Surface a date change loudly: firstTaskRabbitSlot falls back to
+			// another day when the requested date has no availability, and a
+			// silent booking on an unrequested date is exactly what an
+			// autonomous checkout must never hide.
+			if slotDate != "" && date != "" && slotDate != date {
+				booked.Note = fmt.Sprintf("requested %s was unavailable; booked %s instead", date, slotDate)
+			}
+			return printHireBookedResult(cmd, flags, booked)
 		},
 	}
 	cmd.Flags().StringVar(&flagOn, "on", "", "Date to book: YYYY-MM-DD, today, tomorrow, or weekday")
@@ -245,10 +256,14 @@ type hireConfirmSummary struct {
 }
 
 type hireBookedResult struct {
-	Booked     bool   `json:"booked"`
-	Tasker     string `json:"tasker"`
-	AllInTotal string `json:"all_in_total"`
-	JobID      string `json:"job_id,omitempty"`
+	Booked        bool   `json:"booked"`
+	Tasker        string `json:"tasker"`
+	AllInTotal    string `json:"all_in_total"`
+	JobID         string `json:"job_id,omitempty"`
+	RequestedDate string `json:"requested_date,omitempty"`
+	Date          string `json:"date,omitempty"`
+	SlotLabel     string `json:"slot_label,omitempty"`
+	Note          string `json:"note,omitempty"`
 }
 
 func parseOptionalFloatFlag(name, value string) (float64, error) {
@@ -500,8 +515,17 @@ func printHireBookedResult(cmd *cobra.Command, flags *rootFlags, result hireBook
 		{"Tasker", result.Tasker},
 		{"All-in total", result.AllInTotal},
 	}
+	if result.Date != "" {
+		rows = append(rows, []string{"Date", result.Date})
+	}
+	if result.SlotLabel != "" {
+		rows = append(rows, []string{"Slot", result.SlotLabel})
+	}
 	if result.JobID != "" {
 		rows = append(rows, []string{"Job ID", result.JobID})
+	}
+	if result.Note != "" {
+		rows = append(rows, []string{"Note", result.Note})
 	}
 	return flags.printTable(cmd, []string{"FIELD", "VALUE"}, rows)
 }
