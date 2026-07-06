@@ -5,6 +5,7 @@
   "api_name": "grants",
   "category": "health",
   "display_name": "Research Grants Finder",
+  "description": "Open US federal research funding from the terminal, keyless — Grants.gov open opportunities with deadline/agency/award/eligibility filters, plus awarded NIH RePORTER and NSF grants as funding benchmarks.",
   "cli_name": "grants-pp-cli",
   "creator": {
     "handle": "laci141",
