@@ -80,7 +80,9 @@ func SearchOpportunities(keyword, agencyCode string, rows int) ([]Opportunity, i
 }
 
 type grantsFetchResp struct {
-	Data struct {
+	ErrorCode int    `json:"errorcode"`
+	Msg       string `json:"msg"`
+	Data      struct {
 		Synopsis struct {
 			AwardCeiling     any    `json:"awardCeiling"`
 			AwardFloor       any    `json:"awardFloor"`
@@ -98,6 +100,9 @@ func FetchDetails(id json.Number) (*OppDetails, error) {
 	var resp grantsFetchResp
 	if err := postJSON(grantsFetchURL, map[string]any{"opportunityId": id.String()}, &resp); err != nil {
 		return nil, fmt.Errorf("grants.gov fetchOpportunity %s: %w", id, err)
+	}
+	if resp.ErrorCode != 0 {
+		return nil, fmt.Errorf("grants.gov fetchOpportunity %s: errorcode %d: %s", id, resp.ErrorCode, resp.Msg)
 	}
 	d := &OppDetails{
 		AwardCeiling:     ParseMoney(resp.Data.Synopsis.AwardCeiling),
