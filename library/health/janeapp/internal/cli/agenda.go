@@ -43,6 +43,9 @@ By default it shows all logged-in clinics; pass --clinic to scope to one.`,
 				now := time.Now()
 				kept := make([]apptRecord, 0, len(recs))
 				for _, r := range recs {
+					if str(r.view["status"]) == "cancelled" {
+						continue
+					}
 					if r.Start.IsZero() || !r.Start.Before(now) {
 						kept = append(kept, r)
 					}

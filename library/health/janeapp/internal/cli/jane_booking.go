@@ -191,6 +191,25 @@ func (b *janeBooker) Book(ctx context.Context, treatmentID, staffID, locationID 
 	return cbody, nil
 }
 
+// parseAppointmentList decodes /api/v2/appointments, which may return a bare
+// array or an object wrapping one ({"appointments":[...]}).
+func parseAppointmentList(body string) []map[string]any {
+	var arr []map[string]any
+	if json.Unmarshal([]byte(body), &arr) == nil {
+		return arr
+	}
+	var wrapper map[string]json.RawMessage
+	if json.Unmarshal([]byte(body), &wrapper) == nil {
+		for _, key := range []string{"appointments", "data", "results"} {
+			if raw, ok := wrapper[key]; ok {
+				_ = json.Unmarshal(raw, &arr)
+				return arr
+			}
+		}
+	}
+	return arr
+}
+
 // resolvePatientID pulls the authenticated patient's id from an existing
 // appointment (the payload carries patient_id).
 func (b *janeBooker) resolvePatientID(ctx context.Context) string {
@@ -198,11 +217,7 @@ func (b *janeBooker) resolvePatientID(ctx context.Context) string {
 	if err != nil {
 		return ""
 	}
-	var appts []map[string]any
-	if json.Unmarshal([]byte(body), &appts) != nil {
-		return ""
-	}
-	for _, a := range appts {
+	for _, a := range parseAppointmentList(body) {
 		if pid, ok := a["patient_id"]; ok {
 			return fmt.Sprintf("%v", jsonNumberToInt(pid))
 		}
@@ -220,4 +235,59 @@ func jsonNumberToInt(v any) int64 {
 		return int64(n)
 	}
 	return 0
+}
+
+// Cancel cancels a booked appointment. Jane's patient portal cancels with
+// DELETE /api/v2/appointments/{id} (the booking/cancel thunk); the /cancel and
+// /late-cancel suffixes are the staff/admin API, not the patient one. `reason`
+// is currently unused by the patient endpoint but kept for a stable signature.
+func (b *janeBooker) Cancel(ctx context.Context, appointmentID int, reason string) (string, error) {
+	_ = reason
+	status, body, err := b.jsonReq(ctx, http.MethodDelete, fmt.Sprintf("/api/v2/appointments/%d", appointmentID), nil)
+	if err != nil {
+		return "", fmt.Errorf("cancelling appointment: %w", err)
+	}
+	janeTrace(b.dbg, "DELETE /appointments/{id}", status, "body="+snippet(body))
+	if status == 404 {
+		return "", fmt.Errorf("appointment %d not found (already cancelled, or wrong id)", appointmentID)
+	}
+	if status >= 400 {
+		return "", fmt.Errorf("cancel failed (HTTP %d): %s", status, snippet(body))
+	}
+	return body, nil
+}
+
+// apptDetail holds the fields needed to rebook an appointment during reschedule.
+type apptDetail struct {
+	TreatmentID   int
+	StaffMemberID int
+	LocationID    int
+	StartAt       string
+	Found         bool
+}
+
+// appointmentByID fetches the authenticated appointment list and returns the
+// treatment/staff/location for the given appointment id (needed to rebook it
+// at a new time during reschedule).
+func (b *janeBooker) appointmentByID(ctx context.Context, id int) (apptDetail, error) {
+	_, body, _, err := janeReqAccept(ctx, b.hc, b.base+"/api/v2/appointments")
+	if err != nil {
+		return apptDetail{}, err
+	}
+	for _, a := range parseAppointmentList(body) {
+		if int(jsonNumberToInt(a["id"])) != id {
+			continue
+		}
+		d := apptDetail{
+			TreatmentID:   int(jsonNumberToInt(a["treatment_id"])),
+			StaffMemberID: int(jsonNumberToInt(a["staff_member_id"])),
+			LocationID:    int(jsonNumberToInt(a["location_id"])),
+			Found:         true,
+		}
+		if s, ok := a["start_at"].(string); ok {
+			d.StartAt = s
+		}
+		return d, nil
+	}
+	return apptDetail{}, nil
 }

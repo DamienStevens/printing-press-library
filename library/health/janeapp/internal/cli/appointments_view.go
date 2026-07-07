@@ -322,9 +322,12 @@ func runAppointmentsFiltered(cmd *cobra.Command, flags *rootFlags, allClinics bo
 	now := time.Now()
 	filtered := make([]apptRecord, 0, len(recs))
 	for _, r := range recs {
+		cancelled := str(r.view["status"]) == "cancelled"
 		switch window {
 		case "upcoming":
-			if r.Start.IsZero() || !r.Start.Before(now) {
+			// Upcoming = future AND not cancelled. A cancelled appointment is
+			// still "in the future" by time but must not read as a live booking.
+			if (r.Start.IsZero() || !r.Start.Before(now)) && !cancelled {
 				filtered = append(filtered, r)
 			}
 		case "past":

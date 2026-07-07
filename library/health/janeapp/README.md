@@ -439,13 +439,17 @@ endpoints. Coverage is verified to different depths:
 - **Verified live (authenticated):** `auth login --chrome`, `appointments`
   (upcoming/past), `agenda`, `openings`/`next-opening` (future dates), `book`, and
   `calendar` were all confirmed against a real logged-in account.
-- **`book` uses Jane's real reserve → confirm flow** (`POST /api/v2/reservations`
-  then `POST /api/v2/appointments/{id}/book`), verified by a live booking. It is
-  dry-run by default; add `--confirm` to submit.
-- **`reschedule` and `cancel` are NOT yet on the real multi-step flow.** They still
-  send a naive single request and are unverified — treat them as experimental.
-  Reschedule by booking the new slot and cancelling the old in the browser until
-  these are reworked to Jane's real endpoints. Both stay dry-run-by-default.
+- **`book`, `cancel`, and `reschedule` are verified live** against a real account:
+  - `book` runs Jane's reserve → confirm flow (`POST /api/v2/reservations` then
+    `POST /api/v2/appointments/{id}/book`).
+  - `cancel` is `DELETE /api/v2/appointments/{id}` (the patient endpoint; the
+    `/cancel` suffix is the staff API).
+  - `reschedule` books the new slot first, then cancels the old with a fresh CSRF
+    token (Jane rotates it after each mutation) — so a failed new booking never
+    loses your original appointment.
+  All three are dry-run by default; add `--confirm` to submit.
+- **Cancelled appointments are excluded from `upcoming`/`agenda`** but shown in
+  `past` and the ICS feed (with `STATUS:CANCELLED`).
 - **Availability uses `date`, not `start_date`.** Jane's `/api/v2/openings` keys the
   window on `date`; passing `start_date` is silently ignored (it returns only the
   current week). The CLI sends `date` — a fix over the initial spec guess.
