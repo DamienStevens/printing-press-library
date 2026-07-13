@@ -2373,18 +2373,7 @@
         "Recommend the cheapest vehicle class that fits the party.",
         "Quote ledger + search",
         "log",
-        "Every quote saved to SQLite, full-text searchable and SQL-queryable.",
-        "Account bookings",
-        "bookings",
-        "List your upcoming and past Blacklane rides (requires auth login).",
-        "Account profile",
-        "me",
-        "Show your Blacklane profile (requires auth login).",
-        "Wallet",
-        "Show wallet credits and vouchers (requires auth login).",
-        "Booking handoff",
-        "book",
-        "Quote and assemble a booking, then open browser checkout for payment under --confirm. Never charges."
+        "Every quote saved to SQLite, full-text searchable and SQL-queryable."
       ],
       "path": "library/commerce/blacklane",
       "release": {
