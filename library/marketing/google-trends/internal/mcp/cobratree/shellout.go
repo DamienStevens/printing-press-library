@@ -165,14 +165,20 @@ var reservedStructuredArgs = map[string]bool{
 // per-client filesystem, relocate the config/data/state/cache roots, load a
 // malicious config file, or change the delivery target, all of which sit
 // outside the per-command surface the agent is supposed to be calling.
+// rate-limit and data-source are blocked for the same reason: rate-limit=0
+// disables the CLI's adaptive pacing (causing avoidable upstream throttling
+// or abuse from an MCP session), and data-source can force live reads through
+// mirrored read commands that were only meant to serve local-cache data.
 var blockedRootFlags = map[string]bool{
-	"base-url": true,
-	"client":   true,
-	"config":   true,
-	"deliver":  true,
-	"home":     true,
-	"profile":  true,
-	"token":    true,
+	"base-url":    true,
+	"client":      true,
+	"config":      true,
+	"data-source": true,
+	"deliver":     true,
+	"home":        true,
+	"profile":     true,
+	"rate-limit":  true,
+	"token":       true,
 }
 
 func cliArgsFromMCP(args map[string]any, blocked map[string]bool) []string {

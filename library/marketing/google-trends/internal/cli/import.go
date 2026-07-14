@@ -4,107 +4,30 @@
 package cli
 
 import (
-	"bufio"
-	"encoding/json"
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 )
 
+// google-trends is a read-only reverse-engineered analytics API: the spec
+// declares no create/upsert endpoints, so there is no legitimate import
+// target. The generic import command otherwise builds an authenticated POST
+// path directly from the caller-provided resource argument; since this
+// command is also mirrored as an MCP shell-out tool, an unvalidated resource
+// would let a caller choose an arbitrary API path and JSONL body, using the
+// CLI's stored cookies for unintended POST requests. Rejecting every
+// resource here (rather than trusting caller input) closes that path.
 func newImportCmd(flags *rootFlags) *cobra.Command {
-	var inputFile string
-	var dryRun bool
-	var batchSize int
-
 	cmd := &cobra.Command{
 		Use:   "import <resource>",
-		Short: "Import data from JSONL file via API create/upsert calls",
-		Long: `Import data from a JSONL file by issuing POST requests for each record.
-Each line must be a valid JSON object. Failed records are logged to stderr
-but do not stop the import.`,
-		Example: `  # Import from a JSONL file
-  google-trends-pp-cli import <resource> --input data.jsonl
-
-  # Dry-run to preview without sending
-  google-trends-pp-cli import <resource> --input data.jsonl --dry-run
-
-  # Import from stdin
-  cat data.jsonl | google-trends-pp-cli import <resource> --input -`,
-		Args: cobra.ExactArgs(1),
+		Short: "Not supported: google-trends has no bulk-import target",
+		Long: `google-trends has no create/upsert endpoints to import into — every
+endpoint in this API is read-only. This command always returns a usage error.`,
+		Example: "  google-trends-pp-cli import trends  # always errors: no importable resource exists",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			c, err := flags.newClient()
-			if err != nil {
-				return err
-			}
-			c.DryRun = dryRun
-
-			resource := args[0]
-			path := "/" + resource
-
-			var reader io.Reader
-			if inputFile == "-" || inputFile == "" {
-				reader = os.Stdin
-			} else {
-				f, err := os.Open(filepath.Clean(inputFile)) // #nosec G304 -- user-specified input file is this flag's documented purpose.
-				if err != nil {
-					return fmt.Errorf("opening input file: %w", err)
-				}
-				defer f.Close()
-				reader = f
-			}
-
-			scanner := bufio.NewScanner(reader)
-			scanner.Buffer(make([]byte, 1024*1024), 1024*1024) // 1MB line buffer
-
-			var success, failed, skipped int
-			for scanner.Scan() {
-				line := strings.TrimSpace(scanner.Text())
-				if line == "" || line[0] == '#' {
-					skipped++
-					continue
-				}
-
-				var body map[string]any
-				if err := json.Unmarshal([]byte(line), &body); err != nil {
-					fmt.Fprintf(os.Stderr, "warning: skipping invalid JSON line: %v\n", err)
-					failed++
-					continue
-				}
-
-				_, _, err := c.Post(cmd.Context(), path, body)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "warning: failed to import record: %v\n", err)
-					failed++
-					continue
-				}
-				success++
-			}
-
-			if err := scanner.Err(); err != nil {
-				return fmt.Errorf("reading input: %w", err)
-			}
-
-			// JSON envelope: {succeeded, failed, skipped}.
-			if flags.asJSON {
-				return printJSONFiltered(cmd.OutOrStdout(), map[string]any{
-					"succeeded": success,
-					"failed":    failed,
-					"skipped":   skipped,
-				}, flags)
-			}
-			fmt.Fprintf(os.Stderr, "Import complete: %d succeeded, %d failed, %d skipped\n", success, failed, skipped)
-			return nil
+			return usageErr(fmt.Errorf("import: %q is not an importable resource; google-trends has no bulk-import target (all endpoints are read-only)", args[0]))
 		},
 	}
-
-	cmd.Flags().StringVarP(&inputFile, "input", "i", "", "Input JSONL file path (use - for stdin)")
-	_ = cmd.MarkFlagRequired("input")
-	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview import without sending requests")
-	cmd.Flags().IntVar(&batchSize, "batch-size", 1, "Records per batch (future: batch API support)")
-
 	return cmd
 }

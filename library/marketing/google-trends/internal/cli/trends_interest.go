@@ -89,7 +89,7 @@ func newTrendsInterestCmd(flags *rootFlags) *cobra.Command {
 					out = append(out, row)
 					if db != nil {
 						body, _ := json.Marshal(row)
-						if err := db.Upsert("gt_interest_point", sha256ID(kw, flagGeo, date), body); err != nil {
+						if err := db.Upsert("gt_interest_point", sha256ID(kw, flagGeo, flagTimeframe, date), body); err != nil {
 							fmt.Fprintf(cmd.ErrOrStderr(), "warning: failed to cache interest point for %q: %v\n", kw, err)
 						}
 					}
@@ -99,7 +99,7 @@ func newTrendsInterestCmd(flags *rootFlags) *cobra.Command {
 				for _, kw := range keywords {
 					q := gtKeywordQueryRecord{Keyword: kw, Geo: flagGeo, Timeframe: flagTimeframe, LastSyncedAt: syncedAt}
 					body, _ := json.Marshal(q)
-					if err := db.Upsert("gt_keyword_query", sha256ID(kw, flagGeo), body); err != nil {
+					if err := db.Upsert("gt_keyword_query", sha256ID(kw, flagGeo, flagTimeframe), body); err != nil {
 						fmt.Fprintf(cmd.ErrOrStderr(), "warning: failed to cache keyword query for %q: %v\n", kw, err)
 					}
 				}

@@ -33,7 +33,7 @@ func collectRelatedTerms(ctx context.Context, c *client.Client, db *store.Store,
 			out = append(out, rec)
 			if db != nil {
 				body, _ := json.Marshal(rec)
-				id := sha256ID(keyword, rec.Term, kind, facetLabel)
+				id := sha256ID(keyword, rec.Term, kind, facetLabel, geo, timeframe)
 				if err := db.Upsert("gt_related_term", id, body); err != nil {
 					fmt.Fprintf(cmd.ErrOrStderr(), "warning: failed to cache related term %q: %v\n", rec.Term, err)
 				}
