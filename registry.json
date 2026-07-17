@@ -6380,9 +6380,9 @@
       "path": "library/other/function-health",
       "release": {
         "cli_name": "function-health-pp-cli",
-        "version": "2026.7.1",
-        "released_at": "2026-07-08T18:21:21Z",
-        "source_commit": "11d7b4ea752c9c8fb8909037133058eb57560cc0"
+        "version": "2026.7.2",
+        "released_at": "2026-07-16T22:20:37Z",
+        "source_commit": "b1088e5f321b4b04815550498a820005484c93a6"
       },
       "printer": "DamienStevens",
       "printer_name": "Damien Stevens",
@@ -7943,11 +7943,12 @@
     {
       "name": "hotel-goat",
       "category": "travel",
-      "api": "Google Hotels",
+      "api": "Hotel GOAT",
       "description": "Every Google Hotels feature, plus per-OTA price breakdown, local price-drift history, brand-loyalty filters",
       "search_terms": [
         "hotel-goat",
         "Google Hotels",
+        "Hotel GOAT",
         "hotel-goat-pp-cli",
         "Every Google Hotels feature, plus per-OTA price breakdown, local price-drift history, brand-loyalty filters, and date-flex windowing no other tool has.",
         "Agent-composable nested JSON via --select dotted paths",
@@ -7957,9 +7958,9 @@
       "path": "library/travel/hotel-goat",
       "release": {
         "cli_name": "hotel-goat-pp-cli",
-        "version": "2026.7.1",
-        "released_at": "2026-07-08T18:21:21Z",
-        "source_commit": "11d7b4ea752c9c8fb8909037133058eb57560cc0"
+        "version": "2026.7.2",
+        "released_at": "2026-07-17T02:06:03Z",
+        "source_commit": "81af5eb6ce846635d369191502e5d693e785ab5c"
       },
       "printer": "kothari-nikunj",
       "printer_name": "kothari-nikunj",
@@ -9336,9 +9337,9 @@
       "path": "library/project-management/linear",
       "release": {
         "cli_name": "linear-pp-cli",
-        "version": "2026.7.3",
-        "released_at": "2026-07-08T23:15:22Z",
-        "source_commit": "220c1563d0375ec8741c4c377b4bb5a4317cbf6a"
+        "version": "2026.7.4",
+        "released_at": "2026-07-14T04:01:57Z",
+        "source_commit": "2861d698a71ff1e98ccc6f5dac5767c813e8d443"
       },
       "printer": "mvanhorn",
       "printer_name": "Matt Van Horn",
@@ -12960,11 +12961,12 @@
     {
       "name": "prediction-goat",
       "category": "payments",
-      "api": "Markets",
+      "api": "Prediction GOAT",
       "description": "Every Polymarket and Kalshi market in one slim agent-native CLI, with cross-venue topic search and screens no other...",
       "search_terms": [
         "prediction-goat",
         "Markets",
+        "Prediction GOAT",
         "prediction-goat-pp-cli",
         "Cross-venue topic bundle",
         "topic",
@@ -12996,9 +12998,9 @@
       "path": "library/payments/prediction-goat",
       "release": {
         "cli_name": "prediction-goat-pp-cli",
-        "version": "2026.7.1",
-        "released_at": "2026-07-08T18:21:21Z",
-        "source_commit": "11d7b4ea752c9c8fb8909037133058eb57560cc0"
+        "version": "2026.7.2",
+        "released_at": "2026-07-17T02:06:03Z",
+        "source_commit": "81af5eb6ce846635d369191502e5d693e785ab5c"
       },
       "printer": "mvanhorn",
       "printer_name": "Matt Van Horn",
@@ -14360,6 +14362,12 @@
         "Render price and open/sold-out across many entry days for a fixed-length stay."
       ],
       "path": "library/travel/sea-airport-parking",
+      "release": {
+        "cli_name": "sea-airport-parking-pp-cli",
+        "version": "2026.7.1",
+        "released_at": "2026-07-14T03:57:29Z",
+        "source_commit": "fc428c45363e9e95d69d49a0a714ebf827d3c387"
+      },
       "printer": "omarshahine",
       "printer_name": "Omar Shahine",
       "creator": {
@@ -14720,9 +14728,9 @@
       "path": "library/monitoring/sentry",
       "release": {
         "cli_name": "sentry-pp-cli",
-        "version": "2026.7.1",
-        "released_at": "2026-07-08T18:21:21Z",
-        "source_commit": "11d7b4ea752c9c8fb8909037133058eb57560cc0"
+        "version": "2026.7.2",
+        "released_at": "2026-07-16T22:09:11Z",
+        "source_commit": "5dd8f6da8021cb258ffefb0de74576dcc57c2b17"
       },
       "printer": "cathrynlavery",
       "printer_name": "Cathryn Lavery",
@@ -17705,11 +17713,12 @@
     {
       "name": "ufo-goat",
       "category": "other",
-      "api": "War.gov UFO",
+      "api": "UFO GOAT",
       "description": "Browse, search, and download declassified UAP files from the War.gov PURSUE archive",
       "search_terms": [
         "ufo-goat",
         "War.gov UFO",
+        "UFO GOAT",
         "ufo-goat-pp-cli",
         "Release Sync",
         "sync",
@@ -17736,9 +17745,9 @@
       "path": "library/other/ufo-goat",
       "release": {
         "cli_name": "ufo-goat-pp-cli",
-        "version": "2026.7.1",
-        "released_at": "2026-07-08T18:21:21Z",
-        "source_commit": "11d7b4ea752c9c8fb8909037133058eb57560cc0"
+        "version": "2026.7.2",
+        "released_at": "2026-07-17T02:06:03Z",
+        "source_commit": "81af5eb6ce846635d369191502e5d693e785ab5c"
       },
       "printer": "davemorin",
       "printer_name": "Dave Morin",
@@ -18381,19 +18390,20 @@
     {
       "name": "weather-goat",
       "category": "other",
-      "api": "Open-Meteo + NWS",
+      "api": "Weather GOAT",
       "description": "Weather forecasts, severe weather alerts, air quality, and GO/CAUTION/STOP activity verdicts for walk, bike, hike, commute, and drive",
       "search_terms": [
         "weather-goat",
+        "Weather GOAT",
         "weather-goat-pp-cli",
         "Weather forecasts, severe weather alerts, air quality, and GO/CAUTION/STOP activity verdicts for walk, bike, hike, commute, and drive"
       ],
       "path": "library/other/weather-goat",
       "release": {
         "cli_name": "weather-goat-pp-cli",
-        "version": "2026.7.2",
-        "released_at": "2026-07-08T23:15:22Z",
-        "source_commit": "220c1563d0375ec8741c4c377b4bb5a4317cbf6a"
+        "version": "2026.7.3",
+        "released_at": "2026-07-17T02:06:03Z",
+        "source_commit": "81af5eb6ce846635d369191502e5d693e785ab5c"
       },
       "printer": "tmchow",
       "printer_name": "Trevin Chow",
