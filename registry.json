@@ -4480,6 +4480,12 @@
         "Find _acme-challenge TXT records across all zones and delete stale or orphaned ones via the real multi-record delete endpoint."
       ],
       "path": "library/developer-tools/dnsmadeeasy",
+      "release": {
+        "cli_name": "dnsmadeeasy-pp-cli",
+        "version": "2026.7.1",
+        "released_at": "2026-07-20T20:36:38Z",
+        "source_commit": "9ca76a5bcc9685177454e2677ea4c5539f4e72d6"
+      },
       "printer": "dericknwq",
       "printer_name": "Derick Ng",
       "creator": {
@@ -12893,6 +12899,56 @@
       },
       "printer": "CarlF01",
       "printer_name": "CFinney"
+    },
+    {
+      "name": "paperclip-self-hosted",
+      "category": "project-management",
+      "api": "Paperclip CLI",
+      "description": "Mirror-read CLI for the self-hosted Paperclip board. Offline SQLite cache with FTS5 over issues/comments, agent-friendly compound queries, and a local MCP surface for the same endpoints.",
+      "search_terms": [
+        "paperclip-self-hosted",
+        "Paperclip CLI",
+        "paperclip-pp-cli",
+        "Mirror-read CLI for the self-hosted Paperclip board. Offline SQLite cache with FTS5 over issues/comments, agent-friendly compound queries, and a local MCP surface for the same endpoints.",
+        "Choose a browser session cookie, board API key, or agent bearer token. PAPERCLIP_AUTH_MODE can explicitly select board-session, board-api-key, agent-bearer, or none; otherwise the CLI auto-detects the supplied credential.",
+        "Pre-discovery recall loop",
+        "paperclip-pp-cli recall",
+        "Before any discovery fetch, recall checks the local search_learnings table for a previously-taught query->resource mapping. If entity_match is exact and confidence >= 2, skips discovery and goes straight to the live fetch for the returned resource IDs. Cold store (no recall + no candidates) causes recall to be skipped for the rest of the session.",
+        "Post-fetch teach loop",
+        "paperclip-pp-cli teach",
+        "After answering a question, fires teach --query --resource --resource-type in the background to record the question -> resource mapping. Unconditional; anchors playbook synthesis for families taught without one.",
+        "Candidate confirm/reject flow",
+        "paperclip-pp-cli learnings confirm <id> | learnings reject <id>",
+        "Surfaces trial-then-confirm candidates derived from failed-flag + corrected-retry pairs. Confirms install them as durable learnings; rejects mark them dead. Catches skill-side alias drift without manual bookkeeping.",
+        "CompanyId auto-resolution for single-tenant mirrors",
+        "paperclip-pp-cli search <query>",
+        "When a Paperclip endpoint requires companyId in the path (e.g. /api/companies/{companyId}/search), the CLI reads the first cached row from the local companies table and substitutes it automatically. Removes a manual --company flag for single-tenant deployments."
+      ],
+      "path": "library/project-management/paperclip-self-hosted",
+      "printer": "mvanhorn",
+      "printer_name": "cli-printing-press",
+      "creator": {
+        "handle": "veltri-23",
+        "name": "Hunter Veltri"
+      },
+      "mcp": {
+        "binary": "paperclip-pp-mcp",
+        "transports": [
+          "stdio",
+          "http"
+        ],
+        "tool_count": 448,
+        "public_tool_count": 448,
+        "auth_type": "composed",
+        "env_vars": [
+          "PAPERCLIP_AUTH_MODE",
+          "PAPERCLIP_SESSION_COOKIE",
+          "PAPERCLIP_API_KEY",
+          "PAPERCLIP_AGENT_TOKEN"
+        ],
+        "mcp_ready": "full",
+        "spec_format": "openapi3"
+      }
     },
     {
       "name": "passage",
