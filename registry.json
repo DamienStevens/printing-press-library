@@ -4660,6 +4660,12 @@
         "Search every cached transcript for a word, phrase, regex, or verb-tense pattern and get each hit in context with the video, level, guide, and timestamp."
       ],
       "path": "library/education/dreaming",
+      "release": {
+        "cli_name": "dreaming-pp-cli",
+        "version": "2026.7.1",
+        "released_at": "2026-07-20T19:40:20Z",
+        "source_commit": "f7a99796ef74eabb55d6d76ecc294d2cf56bec9c"
+      },
       "printer": "paulbockewitz",
       "printer_name": "Paul Bockewitz",
       "creator": {
@@ -19195,6 +19201,58 @@
         "env_vars": [],
         "mcp_ready": "full",
         "spec_format": "internal"
+      }
+    },
+    {
+      "name": "wahoo",
+      "category": "devices",
+      "api": "Wahoo Cloud API",
+      "description": "Every Wahoo Cloud API capability, plus the local training database and offline analysis Wahoo's app never gives you.",
+      "search_terms": [
+        "wahoo",
+        "Wahoo Cloud API",
+        "wahoo-pp-cli",
+        "Every Wahoo Cloud API capability, plus the local training database and offline analysis Wahoo's app never gives you.",
+        "Ride + FIT archive",
+        "backup",
+        "Download every workout record plus its raw FIT file into a resumable local directory tree so you own a permanent backup.",
+        "Training load (Fitness/Fatigue/Form)",
+        "load",
+        "Compute CTL (Fitness), ATL (Fatigue), and TSB (Form) time series from your synced rides — the analysis TrainingPeaks charges for.",
+        "Recent-window digest",
+        "digest",
+        "One-shot rollup of the last N days: ride count, distance, time, ascent, work, and load delta — pipeable to any tool.",
+        "Personal bests",
+        "bests",
+        "All-time and per-period records for distance, ascent, average power, duration, and work from your ride summaries.",
+        "FTP progression",
+        "ftp-history",
+        "Dated timeline of your FTP and critical power from power-zone records and sync snapshots, with watts/kg when your weight is known.",
+        "Offline route finder",
+        "routes find",
+        "Filter your saved routes by distance band, climbing, and proximity to a point — query a route library the app only scrolls."
+      ],
+      "path": "library/devices/wahoo",
+      "printer": "stellato",
+      "printer_name": "Greg Stellato",
+      "creator": {
+        "handle": "stellato",
+        "name": "Greg Stellato"
+      },
+      "mcp": {
+        "binary": "wahoo-pp-mcp",
+        "transports": [
+          "stdio",
+          "http"
+        ],
+        "tool_count": 28,
+        "public_tool_count": 0,
+        "auth_type": "bearer_token",
+        "env_vars": [
+          "WAHOO_OAUTH2"
+        ],
+        "mcp_ready": "full",
+        "spec_format": "openapi3"
       }
     },
     {
