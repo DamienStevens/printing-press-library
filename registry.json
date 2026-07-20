@@ -8779,6 +8779,64 @@
       ]
     },
     {
+      "name": "ikon",
+      "category": "travel",
+      "api": "Ikon Pass",
+      "description": "Ikon Pass CLI for reservation availability, pass and voucher lookup, multi-season usage history, and offline change tracking.",
+      "search_terms": [
+        "ikon",
+        "Ikon Pass",
+        "ikon-pp-cli",
+        "Ikon Pass CLI for reservation availability, pass and voucher lookup, multi-season usage history, and offline change tracking.",
+        "Most-visited resorts (multi-season)",
+        "most-visited",
+        "Rank the resorts you ski most across every season you've held an Ikon Pass, with per-season day counts.",
+        "The API exposes usage only per single-season pass id, and those ids rotate yearly; only a tool that enumerates all your passes and joins their redemption histories can show lifetime totals.",
+        "Cross-resort trip planner",
+        "plan",
+        "Across every reservation-required resort, show which have your target dates open — one call instead of checking four resorts by hand.",
+        "Requires fanning out the per-resort availability endpoint and joining the results against a date window locally; no single upstream call does this.",
+        "Availability calendar",
+        "calendar",
+        "Month grid of open vs full vs blackout vs closed days for a reservable resort.",
+        "The API returns flat date arrays; rendering them as a navigable month view is local presentation the upstream UI gates behind login clicks.",
+        "Reservation watch",
+        "watch",
+        "Poll a resort+date and alert the moment a currently-full day frees up.",
+        "Requires repeated local polling and diffing of the availability endpoint against a target date — stateful behavior no single API call provides.",
+        "Availability drift",
+        "changes",
+        "After each sync, report which dates opened or closed at your watched resorts since the last snapshot.",
+        "Requires a local SQLite history of availability snapshots to diff against; the API is stateless and never reports change-over-time."
+      ],
+      "path": "library/travel/ikon",
+      "printer": "stellato",
+      "printer_name": "Greg Stellato",
+      "creator": {
+        "handle": "stellato",
+        "name": "Greg Stellato"
+      },
+      "contributors": [
+        {
+          "handle": "tmchow",
+          "name": "Trevin Chow"
+        }
+      ],
+      "mcp": {
+        "binary": "ikon-pp-mcp",
+        "transports": [
+          "stdio",
+          "http"
+        ],
+        "tool_count": 8,
+        "public_tool_count": 1,
+        "auth_type": "cookie",
+        "env_vars": [],
+        "mcp_ready": "partial",
+        "spec_format": "internal"
+      }
+    },
+    {
       "name": "infotbm",
       "category": "travel",
       "api": "TBM Bordeaux",
@@ -13093,6 +13151,58 @@
           "PIPEDRIVE_API_KEY"
         ],
         "mcp_ready": "full"
+      }
+    },
+    {
+      "name": "placeit",
+      "category": "marketing",
+      "api": "Placeit",
+      "description": "Every one of Placeit's 164k mockup, logo, video, and design templates — searchable, sortable by real popularity, and cached offline from your terminal, with catalog analytics Placeit's own UI can't do.",
+      "search_terms": [
+        "placeit",
+        "placeit-pp-cli",
+        "Every one of Placeit's 164k mockup, logo, video, and design templates — searchable, sortable by real popularity, and cached offline from your terminal, with catalog analytics Placeit's own UI can't do.",
+        "Best-seller rank within a niche",
+        "top",
+        "Rank matching templates by real purchase count, not opaque relevance.",
+        "Printify POD-ready filter",
+        "pod",
+        "Return only Printify-compatible mockups for a query with deep links for a listing pipeline.",
+        "Twitch matched-kit builder",
+        "kit",
+        "Assemble a coherent streamer kit (overlay, panels, emotes, frame) and flag missing slots.",
+        "Industry taxonomy map",
+        "industry-map",
+        "Map the 152-entry industry taxonomy with template counts from your synced mirror.",
+        "Saved search watchlist",
+        "watch",
+        "Persist named searches and report templates newly matching since the last sync.",
+        "Cross-facet gap finder",
+        "gaps",
+        "Pivot the catalog across two tag facets to surface under-served template combinations.",
+        "Template popularity percentile",
+        "rank",
+        "Show a template's purchase percentile within its category and tag cohort."
+      ],
+      "path": "library/marketing/placeit",
+      "printer": "vcolombo",
+      "printer_name": "Vincent Colombo",
+      "creator": {
+        "handle": "vcolombo",
+        "name": "Vincent Colombo"
+      },
+      "mcp": {
+        "binary": "placeit-pp-mcp",
+        "transports": [
+          "stdio",
+          "http"
+        ],
+        "tool_count": 3,
+        "public_tool_count": 1,
+        "auth_type": "cookie",
+        "env_vars": [],
+        "mcp_ready": "partial",
+        "spec_format": "internal"
       }
     },
     {
@@ -19233,6 +19343,12 @@
         "Filter your saved routes by distance band, climbing, and proximity to a point — query a route library the app only scrolls."
       ],
       "path": "library/devices/wahoo",
+      "release": {
+        "cli_name": "wahoo-pp-cli",
+        "version": "2026.7.1",
+        "released_at": "2026-07-20T20:33:25Z",
+        "source_commit": "1542a49a4bd74fdb2f9792fd9568cdd240b6a843"
+      },
       "printer": "stellato",
       "printer_name": "Greg Stellato",
       "creator": {
