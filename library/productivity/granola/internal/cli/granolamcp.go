@@ -311,7 +311,13 @@ func mcpAccessToken() (string, error) {
 	if rerr != nil {
 		return "", fmt.Errorf("granola mcp token refresh failed — re-run 'granola-pp-cli mcp-auth login'")
 	}
-	_ = storeMCPToken(clientID, t)
+	if serr := storeMCPToken(clientID, t); serr != nil {
+		// Refresh succeeded but persisting to the Keychain failed. The new
+		// token works this session; warn so the user knows it wasn't saved —
+		// single-use refresh-token rotation could otherwise lose the session
+		// next run when the stale token is reloaded.
+		stderr("warning: refreshed Granola MCP token could not be saved to the Keychain: %v", serr)
+	}
 	return t.AccessToken, nil
 }
 

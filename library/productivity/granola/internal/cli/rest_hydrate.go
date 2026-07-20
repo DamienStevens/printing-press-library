@@ -103,7 +103,13 @@ func hydrateRichFromREST(ctx context.Context, db *sql.DB, c *client.Client, ids 
 	_, _ = db.ExecContext(ctx, `INSERT INTO transcript_fts(transcript_fts) VALUES ('rebuild')`)
 	// Best-effort human/private notes via MCP. Not connected/expired → notes
 	// stay empty (commands hint); never fails the sync.
-	notesSet, _ := enrichHumanNotes(ctx, db, targets)
+	notesSet, nerr := enrichHumanNotes(ctx, db, targets)
+	if nerr != nil && len(targets) > 0 {
+		// MCP is optional/additive, so this never fails the sync — but surface
+		// it so the user knows private/human notes were skipped (rows are
+		// otherwise silently notes-less in notes-show/export/MEMO).
+		stderr("note: private/human notes not enriched (Granola MCP unavailable): %v — run 'granola-pp-cli mcp-auth login'", nerr)
+	}
 	return written, notesSet, nil
 }
 

@@ -3,7 +3,7 @@
   "name": "granola-pp-mcp",
   "display_name": "Granola",
   "version": "1.0.0",
-  "description": "Every Granola feature — plus offline SQLite cross-meeting search, attendee timelines, and a MEMO pipeline runner no other Granola tool has.",
+  "description": "Every Granola feature \u2014 plus offline SQLite cross-meeting search, attendee timelines, and a MEMO pipeline runner no other Granola tool has.",
   "author": {
     "name": "CLI Printing Press"
   },
@@ -15,16 +15,17 @@
       "command": "${__dirname}/bin/granola-pp-mcp",
       "args": [],
       "env": {
-        "PRINTING_PRESS_CLIENT_PROFILE": "${user_config.printing_press_client_profile}"
+        "GRANOLA_API_KEY": "${user_config.granola_api_key}"
       }
     }
   },
   "user_config": {
-    "printing_press_client_profile": {
+    "granola_api_key": {
       "type": "string",
-      "title": "Client profile",
-      "description": "Binds the MCP server to an existing tenant-gated Printing Press client profile.",
-      "required": true
+      "title": "Granola API key",
+      "description": "Granola public API key (Personal or Enterprise). Powers sync, meetings, transcripts, summaries, folders, attendees, talk-time, search, and MEMO.",
+      "sensitive": true,
+      "required": false
     }
   },
   "compatibility": {
