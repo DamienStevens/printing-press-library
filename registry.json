@@ -4739,6 +4739,12 @@
         "Show full detail for a single recall number, with the FDA class legend."
       ],
       "path": "library/health/drug-enforcement",
+      "release": {
+        "cli_name": "drug-enforcement-pp-cli",
+        "version": "2026.7.1",
+        "released_at": "2026-07-20T16:46:48Z",
+        "source_commit": "ce9d830d923131a81eec53fb2f7a9cb6a93304ef"
+      },
       "printer": "laci141",
       "printer_name": "laci141",
       "creator": {
@@ -6003,6 +6009,12 @@
         "Validate many CRDs from a file in one call instead of checking them one at a time."
       ],
       "path": "library/other/finra",
+      "release": {
+        "cli_name": "finra-pp-cli",
+        "version": "2026.7.1",
+        "released_at": "2026-07-20T16:47:32Z",
+        "source_commit": "7b98c6baaf4e138d25aeb377112b945ac498d88e"
+      },
       "printer": "mschreib28",
       "printer_name": "Michael Schreiber",
       "creator": {
@@ -12569,6 +12581,52 @@
       },
       "printer": "CarlF01",
       "printer_name": "CFinney"
+    },
+    {
+      "name": "passage",
+      "category": "media-and-entertainment",
+      "api": "passage",
+      "description": "A contemplative daily reading practice — open book APIs as your library, real public-domain passages to sit with, and a reading journal that's yours.",
+      "search_terms": [
+        "passage",
+        "passage-pp-cli",
+        "A contemplative daily reading practice — open book APIs as your library, real public-domain passages to sit with, and a reading journal that's yours.",
+        "Today's reading",
+        "today",
+        "An opinionated public-domain book or passage to read today, rotated against what you've recently sat with.",
+        "Sit with a passage",
+        "sit",
+        "Fetch a real Project Gutenberg passage, show an excerpt to read, and capture your reflection to your local journal.",
+        "Reflection journal",
+        "journal",
+        "Your reflections over time, newest first — the record of your reading practice.",
+        "What to read next",
+        "next",
+        "Ranks your want-to-read shelf against your reading history to suggest what to pick up next.",
+        "Reading stats",
+        "stats",
+        "Your reading pace, top subjects, and rating distribution from your local log."
+      ],
+      "path": "library/media-and-entertainment/passage",
+      "printer": "justinwfu",
+      "printer_name": "justinwfu",
+      "creator": {
+        "handle": "justinwfu",
+        "name": "justinwfu"
+      },
+      "mcp": {
+        "binary": "passage-pp-mcp",
+        "transports": [
+          "stdio",
+          "http"
+        ],
+        "tool_count": 3,
+        "public_tool_count": 3,
+        "auth_type": "none",
+        "env_vars": [],
+        "mcp_ready": "full",
+        "spec_format": "openapi3"
+      }
     },
     {
       "name": "paul-graham",
