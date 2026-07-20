@@ -3083,6 +3083,49 @@
       }
     },
     {
+      "name": "clickhouse-cloud",
+      "category": "cloud",
+      "api": "Clickhouse Cloud",
+      "description": "Data engineering operations CLI for ClickHouse Cloud organizations, services, ClickPipes, backups, private endpoints, usage, and observability.",
+      "search_terms": [
+        "clickhouse-cloud",
+        "Clickhouse Cloud",
+        "clickhouse-cloud-pp-cli",
+        "Data engineering operations CLI for ClickHouse Cloud organizations, services, ClickPipes, backups, private endpoints, usage, and observability.",
+        "Cloud service inventory",
+        "services instance-get-list",
+        "List ClickHouse Cloud services for an organization so data teams can inventory warehouses, inspect state, and route follow-up service operations.",
+        "ClickPipes operations",
+        "services clickpipes click-pipe-get-list",
+        "Inspect ClickPipes ingestion pipelines, scaling state, reverse private endpoints, and CDC scaling from the same generated command surface.",
+        "Usage and observability",
+        "usage-cost",
+        "Fetch organization usage-cost records plus Prometheus endpoints for service-level monitoring and cost review workflows."
+      ],
+      "path": "library/cloud/clickhouse-cloud",
+      "printer": "sdhilip200",
+      "printer_name": "Dhilip Subramanian",
+      "creator": {
+        "handle": "sdhilip200",
+        "name": "Dhilip Subramanian"
+      },
+      "mcp": {
+        "binary": "clickhouse-cloud-pp-mcp",
+        "transports": [
+          "stdio"
+        ],
+        "tool_count": 109,
+        "public_tool_count": 0,
+        "auth_type": "api_key",
+        "env_vars": [
+          "CLICKHOUSE_CLOUD_USERNAME",
+          "CLICKHOUSE_CLOUD_PASSWORD"
+        ],
+        "mcp_ready": "full",
+        "spec_format": "openapi3"
+      }
+    },
+    {
       "name": "clickup",
       "category": "project-management",
       "api": "Clickup",
@@ -15745,6 +15788,12 @@
         "Find theses in the local store that share the most subject keywords with a given thesis."
       ],
       "path": "library/productivity/shodhganga",
+      "release": {
+        "cli_name": "shodhganga-pp-cli",
+        "version": "2026.7.1",
+        "released_at": "2026-07-20T19:22:06Z",
+        "source_commit": "116874b6fc25aab112dd559bc709bbca2ba581b2"
+      },
       "printer": "vikas-phatak",
       "printer_name": "Vikas",
       "creator": {
