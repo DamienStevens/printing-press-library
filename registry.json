@@ -6031,6 +6031,7 @@
       "search_terms": [
         "figma",
         "figma-pp-cli",
+        "This is the OpenAPI specification for the [Figma REST API](https://developers.figma.com/docs/rest-api/).",
         "Compaction-aware frame extract for codegen prompts",
         "frame extract",
         "Extract a single frame as a compact codegen-ready payload that fuses simplified node tree, in-scope variables, dev resources, and Code Connect mappings.",
@@ -6069,6 +6070,12 @@
         "handle": "giacaglia",
         "name": "Giuliano Giacaglia"
       },
+      "contributors": [
+        {
+          "handle": "VinScagliarini",
+          "name": "VinScagliarini"
+        }
+      ],
       "mcp": {
         "binary": "figma-pp-mcp",
         "transports": [
@@ -6077,9 +6084,11 @@
         ],
         "tool_count": 48,
         "public_tool_count": 0,
-        "auth_type": "bearer_token",
+        "auth_type": "api_key",
         "env_vars": [
-          "FIGMA_OAUTH2"
+          "FIGMA_ACCESS_TOKEN",
+          "FIGMA_API_TOKEN",
+          "FIGMA_API_KEY"
         ],
         "mcp_ready": "full",
         "spec_format": "openapi3"
@@ -13185,6 +13194,12 @@
         "Show a template's purchase percentile within its category and tag cohort."
       ],
       "path": "library/marketing/placeit",
+      "release": {
+        "cli_name": "placeit-pp-cli",
+        "version": "2026.7.1",
+        "released_at": "2026-07-20T20:34:08Z",
+        "source_commit": "739ff02572a26cb184db0d5cdc9885562744719e"
+      },
       "printer": "vcolombo",
       "printer_name": "Vincent Colombo",
       "creator": {
