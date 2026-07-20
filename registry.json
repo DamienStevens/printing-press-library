@@ -12608,6 +12608,12 @@
         "Your reading pace, top subjects, and rating distribution from your local log."
       ],
       "path": "library/media-and-entertainment/passage",
+      "release": {
+        "cli_name": "passage-pp-cli",
+        "version": "2026.7.1",
+        "released_at": "2026-07-20T19:21:27Z",
+        "source_commit": "04c35db65f99a72e612cae5190c116ce04505717"
+      },
       "printer": "justinwfu",
       "printer_name": "justinwfu",
       "creator": {
@@ -15711,6 +15717,52 @@
         ],
         "mcp_ready": "full",
         "spec_format": "openapi3"
+      }
+    },
+    {
+      "name": "shodhganga",
+      "category": "productivity",
+      "api": "Shodhganga",
+      "description": "Structured, scriptable, agent-native access to India's national reservoir of PhD theses — the machine API Shodhganga never shipped.",
+      "search_terms": [
+        "shodhganga",
+        "shodhganga-pp-cli",
+        "Structured, scriptable, agent-native access to India's national reservoir of PhD theses — the machine API Shodhganga never shipped.",
+        "Offline corpus harvest",
+        "harvest",
+        "Mirror a research area's theses into a local database so you can search and analyze offline without re-hitting the site.",
+        "Guide-centric index",
+        "guide",
+        "List every thesis supervised by a given research guide across the harvested corpus.",
+        "University research profile",
+        "university stats",
+        "Aggregate a university's theses in the local store into a profile: thesis count, subject spread, and year range.",
+        "Subject/year trends",
+        "trends",
+        "Show how thesis counts for a subject change over completion year across the harvested corpus.",
+        "Similar theses",
+        "similar",
+        "Find theses in the local store that share the most subject keywords with a given thesis."
+      ],
+      "path": "library/productivity/shodhganga",
+      "printer": "vikas-phatak",
+      "printer_name": "Vikas",
+      "creator": {
+        "handle": "vikas-phatak",
+        "name": "Vikas"
+      },
+      "mcp": {
+        "binary": "shodhganga-pp-mcp",
+        "transports": [
+          "stdio",
+          "http"
+        ],
+        "tool_count": 4,
+        "public_tool_count": 4,
+        "auth_type": "none",
+        "env_vars": [],
+        "mcp_ready": "full",
+        "spec_format": "internal"
       }
     },
     {
