@@ -3103,6 +3103,12 @@
         "Fetch organization usage-cost records plus Prometheus endpoints for service-level monitoring and cost review workflows."
       ],
       "path": "library/cloud/clickhouse-cloud",
+      "release": {
+        "cli_name": "clickhouse-cloud-pp-cli",
+        "version": "2026.7.1",
+        "released_at": "2026-07-20T19:39:37Z",
+        "source_commit": "82dd39cf9fa17a2669c584c0291da42d86ee05cc"
+      },
       "printer": "sdhilip200",
       "printer_name": "Dhilip Subramanian",
       "creator": {
@@ -4624,6 +4630,55 @@
         "env_vars": [],
         "mcp_ready": "partial",
         "spec_format": "internal"
+      }
+    },
+    {
+      "name": "dreaming",
+      "category": "education",
+      "api": "Dreaming",
+      "description": "Every Dreaming Spanish and French tracking feature in one offline-first CLI - roadmap math, catalog search",
+      "search_terms": [
+        "dreaming",
+        "dreaming-pp-cli",
+        "Roadmap-aware next-video picker",
+        "next",
+        "Get the next unwatched videos tuned to where you are on the fluency roadmap, sorted by fine-grained difficulty.",
+        "CSV bulk external-hours import",
+        "external import",
+        "Import a backlog of outside listening/watching hours from a CSV in one command instead of dozens of web-form clicks.",
+        "Difficulty-progression readiness analysis",
+        "diet",
+        "See whether the difficulty of what you actually watch is trending up over a window - the real signal that you're ready to level up.",
+        "Unified fluency-ladder roadmap",
+        "roadmap",
+        "The whole L1-L7 ladder with comprehensible-input advisories (speaking, reading, native milestones) and personalized calendar ETAs in one view.",
+        "Caption / transcript fetch",
+        "transcript",
+        "Fetch a video's captions as clean, timestamp-free plain text (and cache the cue-level transcript).",
+        "Corpus concordance (KWIC) search over all transcripts",
+        "concordance",
+        "Search every cached transcript for a word, phrase, regex, or verb-tense pattern and get each hit in context with the video, level, guide, and timestamp."
+      ],
+      "path": "library/education/dreaming",
+      "printer": "paulbockewitz",
+      "printer_name": "Paul Bockewitz",
+      "creator": {
+        "handle": "paulbockewitz",
+        "name": "Paul Bockewitz"
+      },
+      "mcp": {
+        "binary": "dreaming-pp-mcp",
+        "transports": [
+          "stdio",
+          "http"
+        ],
+        "tool_count": 10,
+        "public_tool_count": 1,
+        "auth_type": "bearer_token",
+        "env_vars": [
+          "DREAMING_TOKEN"
+        ],
+        "mcp_ready": "full"
       }
     },
     {
@@ -11222,6 +11277,41 @@
         "env_vars": [],
         "mcp_ready": "full",
         "spec_format": "internal"
+      }
+    },
+    {
+      "name": "netlify",
+      "category": "cloud",
+      "api": "netlify",
+      "description": "Every Netlify API endpoint, plus a local SQLite mirror of your whole account so you can search, diff, and audit across all sites at once — offline and agent-native.",
+      "search_terms": [
+        "netlify",
+        "netlify-pp-cli",
+        "Cross-site health dashboard",
+        "overview",
+        "One command shows build status, last deploy time, and form counts for every site in your account.",
+        "Environment variable drift",
+        "env-drift",
+        "Finds env vars that exist on some sites but are missing or differ on others, across contexts.",
+        "Offline form submission search",
+        "submissions search",
+        "Full-text search across every form submission from every site, offline.",
+        "DNS audit",
+        "dns-audit",
+        "Aggregates DNS records across all zones and flags records pointing at deleted sites and soon-expiring SNI certs.",
+        "Deploy timeline",
+        "since",
+        "Shows deploys and builds across all sites within a time window (e.g. last 2h).",
+        "Deploy diff",
+        "deploy-diff",
+        "Compares two deploys of a site (state, commit, context, error) side by side from the local mirror."
+      ],
+      "path": "library/cloud/netlify",
+      "printer": "Selrach84",
+      "printer_name": "Charles Denzel Segovia",
+      "creator": {
+        "handle": "Selrach84",
+        "name": "Charles Denzel Segovia"
       }
     },
     {
