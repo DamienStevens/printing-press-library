@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -12,11 +13,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// newOrphansCmd surfaces published library entities (components, styles,
+// newNovelOrphansCmd surfaces published library entities (components, styles,
 // variables) with zero usage over a window by joining the team-library
 // publish tables with the figma_analytics rows. Empty analytics is treated as
 // a soft skip (Enterprise tier required).
-func newOrphansCmd(flags *rootFlags) *cobra.Command {
+// pp:data-source local
+// orphans joins the team-library publish tables with figma_analytics rows in
+// the local SQLite store; it never calls the live API. Run 'figma-pp-cli sync'
+// (with an Enterprise-tier token for analytics) to populate it.
+func newNovelOrphansCmd(flags *rootFlags) *cobra.Command {
 	var team, kind, window, dbPath string
 
 	cmd := &cobra.Command{
@@ -68,12 +73,14 @@ gracefully with a guidance message.`,
 			}
 			defer db.Close()
 
-			// Soft check: any analytics rows at all?
+			// Soft check: any analytics rows at all? Library analytics is an
+			// Enterprise-tier prerequisite, not a genuine "no orphans" result —
+			// signal it with notFoundErr (exit 3) so agents and scripts can tell
+			// a tier/permission gate apart from a real empty result (exit 0).
 			var analyticsRows int
 			_ = db.DB().QueryRowContext(cmd.Context(), `SELECT COUNT(*) FROM figma_analytics`).Scan(&analyticsRows)
 			if analyticsRows == 0 {
-				fmt.Fprintln(cmd.OutOrStdout(), "library analytics data is empty — Enterprise tier required; run 'figma-pp-cli sync' with an OAuth token if you have access")
-				return nil
+				return notFoundErr(fmt.Errorf("library analytics data is empty — Enterprise tier required\nhint: run 'figma-pp-cli sync' with an Enterprise-tier OAuth token to populate analytics"))
 			}
 
 			// Build per-kind usage maps from figma_analytics. Each row has
@@ -129,8 +136,8 @@ gracefully with a guidance message.`,
 // shape varies (component vs style vs variable analytics), we look up
 // component_key, style_key, or variable_id and sum any of total, usages,
 // usages_in_other_files, or count.
-func buildAnalyticsUsage(ctx interface{ Done() <-chan struct{} }, db *store.Store, cutoff time.Time) (map[string]int, error) {
-	rows, err := db.DB().Query(`SELECT data FROM figma_analytics WHERE synced_at >= ?`, cutoff.Format(time.RFC3339))
+func buildAnalyticsUsage(ctx context.Context, db *store.Store, cutoff time.Time) (map[string]int, error) {
+	rows, err := db.DB().QueryContext(ctx, `SELECT data FROM figma_analytics WHERE synced_at >= ?`, cutoff.Format(time.RFC3339))
 	if err != nil {
 		return nil, err
 	}
@@ -165,6 +172,9 @@ func buildAnalyticsUsage(ctx interface{ Done() <-chan struct{} }, db *store.Stor
 			out[id] += n
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("reading analytics rows: %w", err)
+	}
 	return out, nil
 }
 
@@ -188,14 +198,14 @@ func firstInt(m map[string]any, keys ...string) int {
 
 // orphanLibraryEntities reads rows from a publish table and returns entries
 // whose summed usage is zero.
-func orphanLibraryEntities(ctx interface{ Done() <-chan struct{} }, db *store.Store, table, team string, usage map[string]int) ([]map[string]any, error) {
+func orphanLibraryEntities(ctx context.Context, db *store.Store, table, team string, usage map[string]int) ([]map[string]any, error) {
 	q := "SELECT id, data FROM " + table
 	var args []any
 	if team != "" && (table == "teams_components" || table == "teams_styles") {
 		q += " WHERE teams_id = ?"
 		args = append(args, team)
 	}
-	rows, err := db.DB().Query(q, args...)
+	rows, err := db.DB().QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -224,6 +234,9 @@ func orphanLibraryEntities(ctx interface{ Done() <-chan struct{} }, db *store.St
 			entry["name"] = name
 		}
 		out = append(out, entry)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("reading %s rows: %w", table, err)
 	}
 	return out, nil
 }
