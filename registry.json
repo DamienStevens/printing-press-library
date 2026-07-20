@@ -6680,6 +6680,56 @@
       }
     },
     {
+      "name": "github-contents",
+      "category": "developer-tools",
+      "api": "GitHub Contents",
+      "description": "Download any GitHub folder without cloning — plan it first, verify it after, re-sync only what changed.",
+      "search_terms": [
+        "github-contents",
+        "GitHub Contents",
+        "github-contents-pp-cli",
+        "Download any GitHub folder without cloning — plan it first, verify it after, re-sync only what changed.",
+        "Dry-run download plan",
+        "plan",
+        "Preview exactly what a fetch would download — file list, sizes, total bytes, API-request cost vs your remaining quota, and LFS-pointer warnings — before spending any bandwidth.",
+        "Blob-SHA integrity verify",
+        "verify",
+        "Check whether a previously downloaded directory still matches the remote at a ref — match/changed/missing/extra per file — without re-downloading anything.",
+        "Incremental re-sync",
+        "sync-dir",
+        "Update an existing downloaded directory in place, fetching only files that changed upstream or are missing locally.",
+        "Path size breakdown",
+        "stats",
+        "Size and file-count breakdown of any repo path by subfolder and extension, plus the largest files, from a single API request.",
+        "Offline tree search",
+        "search",
+        "Search previously fetched repo listings from the local store — find files by name or pattern with zero API calls."
+      ],
+      "path": "library/developer-tools/github-contents",
+      "printer": "rvdlaar",
+      "printer_name": "Rick van de Laar",
+      "creator": {
+        "handle": "rvdlaar",
+        "name": "Rick van de Laar"
+      },
+      "mcp": {
+        "binary": "github-contents-pp-mcp",
+        "transports": [
+          "stdio",
+          "http"
+        ],
+        "tool_count": 9,
+        "public_tool_count": 0,
+        "auth_type": "bearer_token",
+        "env_vars": [
+          "GITHUB_TOKEN",
+          "GH_TOKEN"
+        ],
+        "mcp_ready": "full",
+        "spec_format": "internal"
+      }
+    },
+    {
       "name": "github-intel",
       "category": "developer-tools",
       "api": "Github Current Intelligence",
@@ -13737,6 +13787,12 @@
         "A random verse with its Tafsiriyah translation for reflection."
       ],
       "path": "library/education/quranku",
+      "release": {
+        "cli_name": "quranku-pp-cli",
+        "version": "2026.7.1",
+        "released_at": "2026-07-20T16:45:16Z",
+        "source_commit": "64cfae62fe10fee8d5c4ceef2255f9ad5f4a17de"
+      },
       "printer": "erikgunawans",
       "printer_name": "erikgunawans",
       "creator": {
