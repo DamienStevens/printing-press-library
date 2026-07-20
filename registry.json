@@ -5976,6 +5976,57 @@
       }
     },
     {
+      "name": "finra",
+      "category": "other",
+      "api": "FINRA",
+      "description": "Every FINRA Query API dataset, plus local trend detection and batch registration checks no other FINRA tool offers.",
+      "search_terms": [
+        "finra",
+        "finra-pp-cli",
+        "Every FINRA Query API dataset, plus local trend detection and batch registration checks no other FINRA tool offers.",
+        "Threshold-list escalation tracker",
+        "regsho threshold-watch",
+        "See which symbols just crossed the Reg SHO 5-day threshold escalation point before it triggers a mandatory close-out.",
+        "New-complaints-since-last-sync",
+        "complaints new",
+        "See 4530 customer complaint filings for a firm within a recent time window, without re-reading the full history.",
+        "Fixed-income market-health snapshot",
+        "fixedincome health",
+        "One snapshot report joining TRACE, Corporate/Agency Debt Market Breadth, and Corporate/Agency Debt Market Sentiment for a time window.",
+        "TRACE monthly volume trend",
+        "trace liquidity",
+        "Month-over-month trend in TRACE Monthly Volume trade count and volume for a product category (or market-wide if no category given).",
+        "Registration timeline",
+        "Full chronological registration-status history for one person, joining Composite Individual, Firm Registration Status History, and Individual Delta records.",
+        "Registration validation batch check",
+        "registration validate-batch",
+        "Validate many CRDs from a file in one call instead of checking them one at a time."
+      ],
+      "path": "library/other/finra",
+      "printer": "mschreib28",
+      "printer_name": "Michael Schreiber",
+      "creator": {
+        "handle": "mschreib28",
+        "name": "Michael Schreiber"
+      },
+      "mcp": {
+        "binary": "finra-pp-mcp",
+        "transports": [
+          "stdio",
+          "http"
+        ],
+        "tool_count": 7,
+        "public_tool_count": 0,
+        "auth_type": "oauth2",
+        "env_vars": [
+          "FINRA_CLIENT_ID",
+          "FINRA_CLIENT_SECRET"
+        ],
+        "mcp_ready": "full",
+        "spec_format": "internal"
+      }
+    },
+    {
       "name": "firecrawl",
       "category": "developer-tools",
       "api": "Firecrawl",
