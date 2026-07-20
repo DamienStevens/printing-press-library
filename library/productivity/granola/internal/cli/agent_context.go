@@ -8,43 +8,35 @@ import (
 	"os"
 	"sort"
 
+	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/cliutil"
+	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/learn"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
 // agentContextSchemaVersion is bumped on any breaking change to the JSON
 // shape emitted by `agent-context`. Agents should check this before
-// parsing. Shape at v3 adds kind-aware auth env var metadata.
-const agentContextSchemaVersion = "3"
+// parsing. Shape at v4 adds resolved config/data/state/cache directories.
+const agentContextSchemaVersion = "4"
 
 // agentContext is the structured description of this CLI consumed by AI
 // agents. Inspired by Cloudflare's /cdn-cgi/explorer/api runtime endpoint
 // (2026-04-13 Wrangler post): agents can introspect the live CLI without
 // parsing --help or reading source.
 type agentContext struct {
-	SchemaVersion              string                 `json:"schema_version"`
-	CLI                        agentContextCLI        `json:"cli"`
-	Auth                       agentContextAuth       `json:"auth"`
-	Discovery                  *agentContextDiscovery `json:"discovery,omitempty"`
-	Commands                   []agentContextCommand  `json:"commands"`
-	AvailableProfiles          []string               `json:"available_profiles"`
-	FeedbackEndpointConfigured bool                   `json:"feedback_endpoint_configured"`
-	// PATCH(auto-refresh): expose the auto-refresh contract so
-	// introspecting agents discover the opt-out surface at runtime
-	// without scraping --help.
-	AutoRefresh agentContextAutoRefresh `json:"auto_refresh"`
-}
-
-// agentContextAutoRefresh describes the per-command auto-refresh
-// behavior added by the auto-refresh hook. Stable JSON shape — bumping
-// any field is a SchemaVersion bump.
-type agentContextAutoRefresh struct {
-	Default      string   `json:"default"`       // "on"
-	Flag         string   `json:"flag"`          // "--no-refresh"
-	Env          string   `json:"env"`           // "GRANOLA_NO_AUTO_REFRESH"
-	ProfileField string   `json:"profile_field"` // "no-refresh"
-	Surfaces     []string `json:"surfaces"`      // ["cache","api"]
-	SkipList     []string `json:"skip_list"`     // command names that bypass refresh
+	SchemaVersion              string                  `json:"schema_version"`
+	CLI                        agentContextCLI         `json:"cli"`
+	Auth                       agentContextAuth        `json:"auth"`
+	Paths                      agentContextPaths       `json:"paths"`
+	Discovery                  *agentContextDiscovery  `json:"discovery,omitempty"`
+	Commands                   []agentContextCommand   `json:"commands"`
+	AvailableProfiles          []string                `json:"available_profiles"`
+	FeedbackEndpointConfigured bool                    `json:"feedback_endpoint_configured"`
+	AutoRefresh                agentContextAutoRefresh `json:"auto_refresh"`
+	// LearnProtocol carries the recall-first protocol from the single
+	// shared source (internal/learn.RecallFirstProtocol) also consumed by
+	// the MCP context tool, so the two agent surfaces cannot drift.
+	LearnProtocol string `json:"learn_protocol"`
 }
 
 type agentContextCLI struct {
@@ -64,6 +56,13 @@ type agentContextAuthEnvVar struct {
 	Required    bool   `json:"required"`
 	Sensitive   bool   `json:"sensitive"`
 	Description string `json:"description,omitempty"`
+}
+
+type agentContextPaths struct {
+	ConfigDir string `json:"config_dir"`
+	DataDir   string `json:"data_dir"`
+	StateDir  string `json:"state_dir"`
+	CacheDir  string `json:"cache_dir"`
 }
 
 type agentContextDiscovery struct {
@@ -140,38 +139,33 @@ func buildAgentContext(rootCmd *cobra.Command) agentContext {
 		SchemaVersion: agentContextSchemaVersion,
 		CLI: agentContextCLI{
 			Name:        "granola-pp-cli",
-			Description: "Every Granola feature — plus offline SQLite cross-meeting search, attendee timelines, and a MEMO pipeline runner...",
+			Description: "Every Granola feature — plus offline SQLite cross-meeting search, attendee timelines, and a MEMO pipeline runner no other Granola tool has.",
 			Version:     rootCmd.Version,
 		},
 		Auth: agentContextAuth{
 			Mode:    authMode,
 			EnvVars: envVars,
 		},
+		Paths:                      buildAgentContextPaths(),
 		Discovery:                  buildAgentDiscoveryContext(),
 		Commands:                   collectAgentCommands(rootCmd),
 		AvailableProfiles:          profiles,
 		FeedbackEndpointConfigured: FeedbackEndpointConfigured(),
 		AutoRefresh:                buildAutoRefreshContext(),
+		LearnProtocol:              learn.RecallFirstProtocol,
 	}
 }
 
-// buildAutoRefreshContext mirrors the auto-refresh constants and skip
-// list in autorefresh.go so the agent-context JSON stays in sync with
-// the live behavior. If the skip list grows there, this function must
-// be updated in the same change — autorefresh tests pin the list.
-func buildAutoRefreshContext() agentContextAutoRefresh {
-	skip := make([]string, 0, len(noRefreshCommands))
-	for name := range noRefreshCommands {
-		skip = append(skip, name)
-	}
-	sort.Strings(skip)
-	return agentContextAutoRefresh{
-		Default:      "on",
-		Flag:         "--no-refresh",
-		Env:          "GRANOLA_NO_AUTO_REFRESH",
-		ProfileField: "no-refresh",
-		Surfaces:     []string{refreshSurfaceCache, refreshSurfaceAPI},
-		SkipList:     skip,
+func buildAgentContextPaths() agentContextPaths {
+	configDir, _ := cliutil.ConfigDir()
+	dataDir, _ := cliutil.DataDir()
+	stateDir, _ := cliutil.StateDir()
+	cacheDir, _ := cliutil.CacheDir()
+	return agentContextPaths{
+		ConfigDir: configDir,
+		DataDir:   dataDir,
+		StateDir:  stateDir,
+		CacheDir:  cacheDir,
 	}
 }
 

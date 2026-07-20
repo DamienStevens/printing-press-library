@@ -27,6 +27,10 @@ func newAttendeeTimelineCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "timeline <email-or-name>",
 		Short: "Every meeting with a given attendee, ordered oldest -> newest",
+		Example: strings.Trim(`
+  granola-pp-cli attendee timeline trevin@example.com
+  granola-pp-cli attendee timeline "Trevin Chow" --since 90d --limit 20
+  granola-pp-cli attendee timeline trevin@example.com --folder "Customer Calls" --json`, "\n"),
 		Annotations: map[string]string{
 			"mcp:read-only": "true",
 		},
@@ -115,6 +119,10 @@ func newAttendeeBriefCmd(flags *rootFlags) *cobra.Command {
   granola-pp-cli attendee brief alice@example.com --json`,
 		Annotations: map[string]string{
 			"mcp:read-only": "true",
+			// Free-text attendee lookup: an unknown identifier is a valid-but-empty
+			// result (exit 0), indistinguishable from a bad argument without
+			// inventing lookup semantics. Opt out of dogfood's invalid-arg probe.
+			"pp:no-error-path-probe": "true",
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {

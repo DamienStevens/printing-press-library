@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"sort"
@@ -51,31 +52,25 @@ func buildArtifacts(id string, allowLive bool, panelTemplate string) (*meetingAr
 		a.NotesHuman = strings.TrimSpace(d.NotesPlain)
 	}
 
-	// Stream 2: AI panel(s).
-	if allowLive {
-		ic, err := granola.NewInternalClient()
-		if err == nil {
-			panels, perr := ic.GetDocumentPanels(id)
-			if perr == nil {
-				a.PanelMap = panels
-				if panelTemplate != "" {
-					a.PanelSummary = panels[panelTemplate]
-				} else {
-					a.PanelSummary = bestPanel(panels)
-				}
+	// Stream 2: AI panel/summary. On v7.4x+ the internal named-panel endpoint is
+	// sealed; the public API exposes the AI summary, which we fetch for not_ ids.
+	if allowLive && strings.HasPrefix(id, "not_") {
+		if panels, perr := restSummaryPanel(context.Background(), id); perr == nil {
+			a.PanelMap = panels
+			if panelTemplate != "" {
+				a.PanelSummary = panels[panelTemplate]
+			} else {
+				a.PanelSummary = bestPanel(panels)
 			}
 		}
 	}
 
-	// Stream 3: transcript.
+	// Stream 3: transcript — cache (REST-fed by enrich) first, then a live REST
+	// fetch for not_ ids. The dead internal API is no longer attempted.
 	a.Transcript = c.TranscriptByID(id)
-	if len(a.Transcript) == 0 && allowLive {
-		ic, err := granola.NewInternalClient()
-		if err == nil {
-			segs, terr := ic.GetDocumentTranscript(id)
-			if terr == nil {
-				a.Transcript = segs
-			}
+	if len(a.Transcript) == 0 && allowLive && strings.HasPrefix(id, "not_") {
+		if segs, terr := fetchTranscriptREST(id); terr == nil {
+			a.Transcript = segs
 		}
 	}
 	return a, nil
@@ -111,6 +106,9 @@ func newExportCmd(flags *rootFlags) *cobra.Command {
 		Long: `Writes a single markdown file with three labeled H2 sections — human
 notes, AI summary, and transcript — kept distinctly so downstream agents
 can route each stream.`,
+		Example: strings.Trim(`
+  granola-pp-cli export not_06Yq6JtogRihEr --out ./meeting.md
+  granola-pp-cli export not_06Yq6JtogRihEr -o ./meeting.md --panel summary`, "\n"),
 		Annotations: map[string]string{
 			"mcp:read-only": "true",
 		},

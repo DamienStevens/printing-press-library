@@ -4,6 +4,8 @@ package cli
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 
 	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/granola"
 	"github.com/spf13/cobra"
@@ -22,6 +24,9 @@ func newWorkspacesListCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List workspaces from cache, falling back to live",
+		Example: strings.Trim(`
+  granola-pp-cli workspaces list
+  granola-pp-cli workspaces list --json`, "\n"),
 		Annotations: map[string]string{
 			"mcp:read-only": "true",
 		},
@@ -44,11 +49,17 @@ func newWorkspacesListCmd(flags *rootFlags) *cobra.Command {
 				return emitJSON(cmd, flags, out)
 			}
 			if flags.dataSource == "local" {
-				return notFoundErr(err)
+				// err is nil here (openGranolaCache soft-fails); construct a real
+				// error rather than notFoundErr(nil), which would render <nil>.
+				return notFoundErr(fmt.Errorf("no workspaces in the local store; run 'granola-pp-cli sync' first"))
 			}
+			// The workspaces list lives only in Granola's sealed desktop store /
+			// internal API (a decrypted pre-v7.4x cache would have populated
+			// c.Workspaces above). On v7.4x+ it is unavailable to a third-party
+			// binary; report that honestly instead of surfacing a raw decrypt error.
 			ic, err := granola.NewInternalClient()
 			if err != nil {
-				return authErr(err)
+				return apiErr(fmt.Errorf("workspaces list unavailable: it lives only in Granola's internal API, sealed on Granola v7.4x+"))
 			}
 			ws, err := ic.GetWorkspaces()
 			if err != nil {

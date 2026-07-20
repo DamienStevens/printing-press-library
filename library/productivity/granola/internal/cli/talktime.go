@@ -19,6 +19,10 @@ func newTalktimeCmd(flags *rootFlags) *cobra.Command {
 		Long: `Without args: returns microphone vs system seconds for one meeting.
 With --by participant --since DATE: aggregates across meetings, attributing
 to source for 2-attendee meetings and rolling up otherwise.`,
+		Example: strings.Trim(`
+  granola-pp-cli talktime not_06Yq6JtogRihEr
+  granola-pp-cli talktime --by participant --since 30d
+  granola-pp-cli talktime --last 7d --json`, "\n"),
 		Annotations: map[string]string{
 			"mcp:read-only": "true",
 		},

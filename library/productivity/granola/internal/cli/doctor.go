@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/client"
+	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/cliutil"
 	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/config"
 	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/store"
 	"github.com/spf13/cobra"
@@ -63,6 +64,79 @@ func looksLikeDoctorInterstitial(body []byte) string {
 	return ""
 }
 
+// suggestReadCommand walks the Cobra tree to find an endpoint-mirror command
+// an operator can run to confirm credentials work end-to-end. Picks the
+// first leaf that (a) carries the `pp:endpoint` annotation, so it actually
+// dials the API rather than reading a local file like `feedback list` or
+// `profile list`; (b) has a list/get verb; and (c) takes no positional
+// arguments, so the suggestion is copy-paste runnable. Returns the dotted
+// command path (e.g. "issues list") or "" when no such command exists —
+// common in mutation-only CLIs and in CLIs where every read command has
+// required positional arguments.
+func suggestReadCommand(root *cobra.Command) string {
+	if root == nil {
+		return ""
+	}
+	var found string
+	var walk func(*cobra.Command, []string)
+	walk = func(cmd *cobra.Command, path []string) {
+		if found != "" {
+			return
+		}
+		for _, child := range cmd.Commands() {
+			childPath := append(append([]string{}, path...), child.Name())
+			if isSuggestableReadLeaf(child) {
+				found = strings.Join(childPath, " ")
+				return
+			}
+			// Recurse even into Hidden parents: printed CLIs mark raw
+			// resource parents Hidden to keep --help curated, but their
+			// endpoint leaves remain runnable (`<cli> projects list`
+			// works). Skipping hidden subtrees would make this return ""
+			// in nearly every CLI. isSuggestableReadLeaf still rejects a
+			// leaf that is itself Hidden.
+			walk(child, childPath)
+			if found != "" {
+				return
+			}
+		}
+	}
+	walk(root, nil)
+	return found
+}
+
+func isSuggestableReadLeaf(cmd *cobra.Command) bool {
+	if cmd == nil || cmd.Hidden || cmd.HasSubCommands() || !cmd.Runnable() {
+		return false
+	}
+	// Only endpoint-mirror commands count; framework commands like
+	// `feedback list` and `profile list` read local files and would
+	// recreate the false-confidence failure mode the suggestion is
+	// supposed to avoid.
+	if cmd.Annotations["pp:endpoint"] == "" {
+		return false
+	}
+	verb := strings.ToLower(strings.SplitN(cmd.Use, " ", 2)[0])
+	if verb != "list" && verb != "get" {
+		return false
+	}
+	// Endpoint commands with positional path params advertise them in
+	// Use as `<id>` (required) or `[id]` (optional). The runtime body
+	// rejects empty args by printing help, so suggesting one would not
+	// actually exercise the token — reject before the Args probe below.
+	if strings.ContainsAny(cmd.Use, "<[") {
+		return false
+	}
+	// Probe the Args validator with an empty positional-arg list. A nil
+	// validator accepts anything (including zero args); a non-nil validator
+	// that returns nil for [] accepts zero args. Either qualifies — the
+	// suggestion `<cli> list` is then a complete command.
+	if cmd.Args == nil {
+		return true
+	}
+	return cmd.Args(cmd, []string{}) == nil
+}
+
 func newDoctorCmd(flags *rootFlags) *cobra.Command {
 	var failOn string
 	cmd := &cobra.Command{
@@ -70,9 +144,28 @@ func newDoctorCmd(flags *rootFlags) *cobra.Command {
 		Short: "Check CLI health",
 		Example: `  granola-pp-cli doctor
   granola-pp-cli doctor --json
-  granola-pp-cli doctor --fail-on warn`,
+  granola-pp-cli doctor --fail-on warn
+  granola-pp-cli doctor --fail-on stale`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if registeredPlatformSource != nil {
+				if flags.platformSession == nil {
+					return errors.New("verified client profile session is required")
+				}
+				report, err := platformDoctorV2Report(cmd.Context(), flags.platformSession)
+				if err != nil {
+					return err
+				}
+				if err := flags.printJSON(cmd, report); err != nil {
+					return err
+				}
+				return flags.platformGateError
+			}
 			report := map[string]any{}
+			pathsReport := collectPathsReport()
+			report["paths"] = pathsReport
+			if warning := pathsWarning(pathsReport); warning != "" {
+				report["paths_warning"] = warning
+			}
 
 			// Check config
 			cfg, err := config.Load(flags.configPath)
@@ -82,6 +175,16 @@ func newDoctorCmd(flags *rootFlags) *cobra.Command {
 				report["config"] = "ok"
 				report["config_path"] = cfg.Path
 				report["base_url"] = cfg.BaseURL
+				// agentcookie integration is soft: if the agentcookie daemon manages
+				// this CLI's config, it writes a marker file alongside the config and
+				// AuthSource is upgraded to "agentcookie" in config.Load. Surface the
+				// state explicitly so users can tell whether the bus is wired up.
+				if cfg.AuthSource == "agentcookie" {
+					report["agentcookie"] = "detected (managing credentials)"
+				} else {
+					report["agentcookie"] = "not detected (optional)"
+				}
+				collectCredentialsLocationReport(report, cfg)
 			}
 
 			// Check auth
@@ -90,7 +193,7 @@ func newDoctorCmd(flags *rootFlags) *cobra.Command {
 				header := cfg.AuthHeader()
 				if header == "" {
 					report["auth"] = "not configured"
-					report["auth_hint"] = "export GRANOLA_API_KEY=<your-key>"
+					report["auth_hint"] = "Run 'granola-pp-cli auth setup' for credential setup steps."
 				} else {
 					authConfigured = true
 					report["auth"] = "configured"
@@ -145,7 +248,7 @@ func newDoctorCmd(flags *rootFlags) *cobra.Command {
 					report["api"] = fmt.Sprintf("client init error: %s", clientErr)
 				} else {
 					// Step 1: Basic reachability via the configured transport.
-					reachBody, reachErr := c.Get("/", nil)
+					reachBody, reachErr := c.Get(cmd.Context(), "/", nil)
 					var reachAPIErr *client.APIError
 					switch {
 					case reachErr == nil:
@@ -182,22 +285,49 @@ func newDoctorCmd(flags *rootFlags) *cobra.Command {
 					} else if reachErr != nil && !errors.As(reachErr, &reachAPIErr) {
 						report["credentials"] = "skipped (API unreachable)"
 					} else {
-						report["credentials"] = "present (not verified — set auth.verify_path in spec for an API acceptance check)"
+						// Honest v7.4x doctor: actually verify the REST key with a
+						// bounded authenticated read (GET /v1/notes?page_size=1)
+						// instead of reporting "present, not verified".
+						if _, verr := c.Get(cmd.Context(), "/v1/notes", map[string]string{"page_size": "1"}); verr == nil {
+							report["credentials"] = "verified (authenticated GET /v1/notes succeeded)"
+						} else {
+							// "ERROR"-prefixed so the human renderer marks it red and
+							// "invalid" so the --fail-on gate classifies it as an error;
+							// a rejected key must not read as a healthy OK.
+							report["credentials"] = fmt.Sprintf("ERROR verification failed — GRANOLA_API_KEY invalid or rejected: %v", verr)
+						}
 					}
 				}
 			} else if cfg != nil && cfg.BaseURL == "" {
 				report["api"] = "not configured (set base_url in config file)"
 			}
-			// Cache health: only reported when this CLI has a local store.
+			// Cache health: only reported when this CLI has generated sync.
 			// Surfaces rows + last_synced_at per resource, schema version,
 			// and a fresh/stale/unknown verdict so agents can introspect
 			// whether to trust the cached data before issuing queries.
 			report["cache"] = collectCacheReport(cmd.Context(), "")
 
-			// PATCH(encrypted-cache): observe the encrypted-store state by
-			// inspecting the support dir + sync state file. Never invokes
-			// safestorage.Decrypt - doctor should diagnose, not prompt.
+			// Honest v7.4x doctor: the encrypted desktop store is app-private
+			// (sealed behind Granola's Keychain access group) — report it as
+			// INFO, never a FAIL. Also surface the Granola official-MCP
+			// (mcp.granola.ai) connection status for human-notes coverage.
 			collectEncryptedStoreReport(report)
+			collectMCPReport(report)
+
+			// Verify mode state. Surfaced so an operator who unintentionally
+			// inherits PRINTING_PRESS_VERIFY=1 (parent shell, CI runner, container
+			// image) detects the foot-gun without inspecting a response body.
+			// Pairs with the synthetic envelope's verify_noop / reason literals
+			// as a second diagnosis anchor.
+			if cliutil.IsVerifyEnv() {
+				if cliutil.IsVerifyLiveHTTPEnv() {
+					report["verify_mode"] = "INFO ACTIVE — live HTTP opt-in (mutating verbs dial out)"
+				} else {
+					report["verify_mode"] = "INFO ACTIVE — mutating HTTP verbs short-circuit (PRINTING_PRESS_VERIFY=1; no network calls for DELETE/POST/PUT/PATCH)"
+				}
+			} else {
+				report["verify_mode"] = "normal operation"
+			}
 
 			report["version"] = version
 
@@ -214,9 +344,13 @@ func newDoctorCmd(flags *rootFlags) *cobra.Command {
 				{"config", "Config"},
 				{"auth", "Auth"},
 				{"env_vars", "Env Vars"},
+				{"verify_mode", "Verify Mode"},
+				{"paths_warning", "Paths"},
+				{"credentials_location_warning", "Credentials Storage"},
 				{"api", "API"},
 				{"credentials", "Credentials"},
-				{"encrypted_store", "Encrypted store"}, // PATCH(encrypted-cache)
+				{"encrypted_store", "Encrypted Store"},
+				{"granola_mcp", "Granola MCP"},
 			}
 			for _, ck := range checkKeys {
 				v, ok := report[ck.key]
@@ -226,6 +360,8 @@ func newDoctorCmd(flags *rootFlags) *cobra.Command {
 				s := fmt.Sprintf("%v", v)
 				indicator := green("OK")
 				switch {
+				case strings.HasPrefix(s, "WARN"):
+					indicator = yellow("WARN")
 				case strings.HasPrefix(s, "INFO"):
 					indicator = yellow("INFO")
 				case strings.HasPrefix(s, "ERROR"):
@@ -235,6 +371,11 @@ func newDoctorCmd(flags *rootFlags) *cobra.Command {
 					indicator = yellow("INFO")
 				case strings.Contains(s, "scope-limited"):
 					indicator = yellow("WARN")
+				case strings.Contains(s, "not verified"):
+					// "present, not verified" — credentials are loaded but no
+					// probe ran. Informational, not a warning; a clean config
+					// shouldn't render yellow WARN in CI dashboards.
+					indicator = yellow("INFO")
 				case strings.Contains(s, "error") || strings.Contains(s, "not configured") || strings.Contains(s, "unreachable") || strings.Contains(s, "invalid") || strings.Contains(s, "missing"):
 					indicator = red("FAIL")
 				case s == "not required":
@@ -243,10 +384,19 @@ func newDoctorCmd(flags *rootFlags) *cobra.Command {
 				case strings.Contains(s, "not ") || strings.Contains(s, "skipped") || strings.Contains(s, "inferred"):
 					indicator = yellow("WARN")
 				}
-				fmt.Fprintf(w, "  %s %s: %s\n", indicator, ck.label, s)
+				// Strip a leading level word — the indicator already conveys
+				// severity; avoids "INFO Granola MCP: INFO not connected".
+				display := s
+				for _, lvl := range []string{"INFO ", "WARN ", "ERROR ", "OK "} {
+					if strings.HasPrefix(display, lvl) {
+						display = display[len(lvl):]
+						break
+					}
+				}
+				fmt.Fprintf(w, "  %s %s: %s\n", indicator, ck.label, display)
 			}
 			// Print info keys without status indicator
-			for _, key := range []string{"config_path", "base_url", "auth_source", "version"} {
+			for _, key := range []string{"config_path", "base_url", "auth_source", "credentials_location", "version"} {
 				if v, ok := report[key]; ok {
 					fmt.Fprintf(w, "  %s: %v\n", key, v)
 				}
@@ -262,22 +412,174 @@ func newDoctorCmd(flags *rootFlags) *cobra.Command {
 					renderCacheReport(w, cacheRep)
 				}
 			}
+			if pathsAny, ok := report["paths"]; ok {
+				if pathsRep, ok := pathsAny.(map[string]any); ok {
+					renderPathsReport(w, pathsRep)
+				}
+			}
 			return doctorExitForFailOn(failOn, report)
 		},
 	}
-	cmd.Flags().StringVar(&failOn, "fail-on", "", "Exit non-zero when a health level is reached: stale, error. Default is never.")
+	cmd.Flags().StringVar(&failOn, "fail-on", "", "Exit non-zero for selected health gates. stale: cache freshness plus errors; warn: credential/path warnings plus errors; error: errors only. Default is never.")
 	return cmd
 }
 
+func collectPathsReport() map[string]any {
+	report := map[string]any{}
+	resolutions, err := cliutil.AllPathResolutions()
+	if err != nil {
+		report["status"] = "error"
+		report["detail"] = err.Error()
+		return report
+	}
+	report["status"] = "ok"
+	ignoredSeen := map[string]bool{}
+	var ignored []map[string]string
+	var notes []string
+	for _, resolution := range resolutions {
+		report[resolution.KindName] = map[string]any{
+			"dir":    resolution.Dir,
+			"rung":   resolution.Rung,
+			"source": resolution.Source,
+		}
+		for _, skipped := range resolution.IgnoredOverrides {
+			key := skipped.Name + "\x00" + skipped.Value
+			if ignoredSeen[key] {
+				continue
+			}
+			ignoredSeen[key] = true
+			ignored = append(ignored, map[string]string{
+				"name":  skipped.Name,
+				"value": skipped.Value,
+			})
+		}
+		if cliutil.HomeOverrideActive() && resolution.Rung == "per-kind-env" && (resolution.Kind == cliutil.PathKindData || resolution.Kind == cliutil.PathKindConfig) {
+			notes = append(notes, fmt.Sprintf("--home shadowed for %s by %s", resolution.KindName, resolution.Source))
+		}
+	}
+	if len(ignored) > 0 {
+		report["skipped_relative_overrides"] = ignored
+	}
+	if len(notes) > 0 {
+		report["notes"] = notes
+	}
+	return report
+}
+
+func pathsWarning(report map[string]any) string {
+	if report == nil {
+		return ""
+	}
+	var parts []string
+	if raw, ok := report["skipped_relative_overrides"].([]map[string]string); ok && len(raw) > 0 {
+		names := make([]string, 0, len(raw))
+		for _, entry := range raw {
+			names = append(names, entry["name"])
+		}
+		parts = append(parts, "relative override skipped: "+strings.Join(names, ", "))
+	}
+	if raw, ok := report["notes"].([]string); ok && len(raw) > 0 {
+		parts = append(parts, "home override shadowed")
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return "WARN paths: " + strings.Join(parts, "; ")
+}
+
+func renderPathsReport(w io.Writer, rep map[string]any) {
+	fmt.Fprintf(w, "  Paths:\n")
+	for _, kind := range []string{"config", "data", "state", "cache"} {
+		entry, ok := rep[kind].(map[string]any)
+		if !ok {
+			continue
+		}
+		fmt.Fprintf(w, "    %s: %v (%v)\n", kind, entry["dir"], entry["source"])
+	}
+	if raw, ok := rep["skipped_relative_overrides"].([]map[string]string); ok && len(raw) > 0 {
+		fmt.Fprintf(w, "    skipped_relative_overrides:\n")
+		for _, entry := range raw {
+			fmt.Fprintf(w, "      %s=%q\n", entry["name"], entry["value"])
+		}
+	}
+	if raw, ok := rep["notes"].([]string); ok && len(raw) > 0 {
+		fmt.Fprintf(w, "    notes:\n")
+		for _, note := range raw {
+			fmt.Fprintf(w, "      %s\n", note)
+		}
+	}
+}
+func collectCredentialsLocationReport(report map[string]any, cfg *config.Config) {
+	if cfg == nil {
+		return
+	}
+	if cfg.CredentialSource != "" {
+		report["credentials_location"] = cfg.CredentialSource
+	} else {
+		report["credentials_location"] = "none"
+	}
+	if cfg.AgentcookieManagedByExternalStore() {
+		return
+	}
+
+	locations := []string{}
+	credsPresent, err := cliutil.CredentialsFileHasValues()
+	if err == nil && credsPresent {
+		locations = append(locations, "credentials file")
+	}
+	legacySecretsElsewhere := ""
+	for _, path := range legacyCredentialProbePaths(cfg) {
+		ok, err := config.FileHasCredentialFields(path)
+		if err == nil && ok {
+			locations = append(locations, path)
+			if path != cfg.Path {
+				legacySecretsElsewhere = path
+			}
+		}
+	}
+	if len(locations) > 0 {
+		report["credentials_locations"] = locations
+	}
+	if credsPresent && len(locations) > 1 {
+		if legacySecretsElsewhere != "" {
+			report["credentials_location_warning"] = "WARN credentials stored in more than one location; legacy secrets remain at " + legacySecretsElsewhere + "; run auth set-token or auth logout to consolidate and remove legacy secrets"
+		} else {
+			report["credentials_location_warning"] = "WARN credentials stored in more than one location; current reads use credentials file; run auth set-token or auth logout to consolidate"
+		}
+	}
+}
+
+func legacyCredentialProbePaths(cfg *config.Config) []string {
+	seen := map[string]bool{}
+	var paths []string
+	add := func(path string) {
+		if path == "" || seen[path] {
+			return
+		}
+		seen[path] = true
+		paths = append(paths, path)
+	}
+	if cfg != nil && cfg.Path != "" {
+		// Probe only the active config; a same-dir standard-named file may
+		// belong to an unrelated CLI sharing that directory.
+		add(cfg.Path)
+	}
+	if legacyPath, err := config.LegacyConfigPath(); err == nil {
+		add(legacyPath)
+	}
+	return paths
+}
+
 // doctorExitForFailOn returns a non-nil error when the report's worst
-// status meets or exceeds the --fail-on threshold. "error" always trips
-// when any section reports an error; "stale" also trips when the cache
-// section is stale. The default empty string means never fail on status.
+// status meets the --fail-on gate. "error" trips on failing sections, "warn"
+// trips on deliberate WARN sections plus errors, and "stale" trips on cache
+// freshness plus errors. The default empty string means never fail on status.
 func doctorExitForFailOn(failOn string, report map[string]any) error {
 	if failOn == "" {
 		return nil
 	}
 	worstError := false
+	worstWarn := false
 	worstStale := false
 	for _, v := range report {
 		s, ok := v.(string)
@@ -285,10 +587,15 @@ func doctorExitForFailOn(failOn string, report map[string]any) error {
 			if strings.Contains(s, "error") || strings.Contains(s, "unreachable") || strings.Contains(s, "invalid") || strings.Contains(s, "missing") {
 				worstError = true
 			}
+			if strings.HasPrefix(s, "WARN") {
+				worstWarn = true
+			}
 		}
 		if m, ok := v.(map[string]any); ok {
 			if st, _ := m["status"].(string); st == "error" {
 				worstError = true
+			} else if st == "warn" {
+				worstWarn = true
 			} else if st == "stale" {
 				worstStale = true
 			}
@@ -299,12 +606,16 @@ func doctorExitForFailOn(failOn string, report map[string]any) error {
 		if worstError {
 			return fmt.Errorf("doctor: --fail-on=error triggered")
 		}
+	case "warn":
+		if worstError || worstWarn {
+			return fmt.Errorf("doctor: --fail-on=warn triggered")
+		}
 	case "stale":
 		if worstError || worstStale {
 			return fmt.Errorf("doctor: --fail-on=stale triggered")
 		}
 	default:
-		return fmt.Errorf("doctor: unknown --fail-on value %q (valid: stale, error)", failOn)
+		return fmt.Errorf("doctor: unknown --fail-on value %q (valid: stale, warn, error)", failOn)
 	}
 	return nil
 }
@@ -398,8 +709,8 @@ func collectCacheReport(ctx context.Context, staleAfterSpec string) map[string]a
 
 	switch {
 	case !haveAny && len(resources) == 0:
-		report["status"] = "unknown"
-		report["hint"] = "sync_state is empty; run 'granola-pp-cli sync' to hydrate."
+		report["status"] = "empty"
+		report["hint"] = "Cache is empty; run 'granola-pp-cli sync' to hydrate."
 	case fresh:
 		report["status"] = "fresh"
 	default:
@@ -419,6 +730,8 @@ func renderCacheReport(w io.Writer, rep map[string]any) {
 	case "error":
 		indicator = red("FAIL")
 	case "unknown":
+		indicator = yellow("INFO")
+	case "empty":
 		indicator = yellow("INFO")
 	}
 	fmt.Fprintf(w, "  %s Cache: %s\n", indicator, status)

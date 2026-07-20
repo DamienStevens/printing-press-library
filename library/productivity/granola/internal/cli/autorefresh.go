@@ -8,11 +8,44 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 )
+
+// agentContextAutoRefresh is the auto-refresh contract surfaced in the
+// agent-context JSON so introspecting agents can discover the opt-out
+// surface without scraping --help.
+type agentContextAutoRefresh struct {
+	Default      string   `json:"default"`       // "on"
+	Flag         string   `json:"flag"`          // "--no-refresh"
+	Env          string   `json:"env"`           // "GRANOLA_NO_AUTO_REFRESH"
+	ProfileField string   `json:"profile_field"` // "no-refresh"
+	Surfaces     []string `json:"surfaces"`      // ["cache","api"]
+	SkipList     []string `json:"skip_list"`     // command names that bypass refresh
+}
+
+// buildAutoRefreshContext mirrors the auto-refresh constants and skip
+// list above so the agent-context JSON stays in sync with live behavior.
+// If the skip list grows, this function must update in the same change —
+// autorefresh tests pin the list.
+func buildAutoRefreshContext() agentContextAutoRefresh {
+	skip := make([]string, 0, len(noRefreshCommands))
+	for name := range noRefreshCommands {
+		skip = append(skip, name)
+	}
+	sort.Strings(skip)
+	return agentContextAutoRefresh{
+		Default:      "on",
+		Flag:         "--no-refresh",
+		Env:          "GRANOLA_NO_AUTO_REFRESH",
+		ProfileField: "no-refresh",
+		Surfaces:     []string{refreshSurfaceCache, refreshSurfaceAPI},
+		SkipList:     skip,
+	}
+}
 
 // PATCH(auto-refresh): central dispatcher for the pre-command refresh.
 // Whenever any command runs (outside the skip list and any opt-out),

@@ -2,7 +2,11 @@
 
 package cli
 
-import "github.com/spf13/cobra"
+import (
+	"strings"
+
+	"github.com/spf13/cobra"
+)
 
 // newSyncApiCmd exposes the generator-emitted public-API sync command
 // under its own name ("sync-api") so we can claim the top-level "sync"
@@ -16,5 +20,9 @@ narrow set of resources the public spec exposes — notes list/get and
 folders. For everything else (transcripts, panels, recipes, chat,
 attendees) use the top-level 'sync' command which reads the desktop
 app's cache file.`
+	cmd.Example = strings.Trim(`
+  granola-pp-cli sync-api
+  granola-pp-cli sync-api --full
+  granola-pp-cli sync-api --since 7d`, "\n")
 	return cmd
 }

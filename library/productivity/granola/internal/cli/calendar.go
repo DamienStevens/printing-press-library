@@ -4,6 +4,7 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/granola"
@@ -25,6 +26,10 @@ func newCalendarOverlayCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "overlay",
 		Short: "List calendar events for a week, marking which were recorded",
+		Example: strings.Trim(`
+  granola-pp-cli calendar overlay
+  granola-pp-cli calendar overlay --week 2026-07-01
+  granola-pp-cli calendar overlay --week 2026-07-01 --missed-only`, "\n"),
 		Annotations: map[string]string{
 			"mcp:read-only": "true",
 		},
@@ -92,6 +97,12 @@ func newCalendarOverlayCmd(flags *rootFlags) *cobra.Command {
 					"attendees":  md.Attendees,
 				}
 				_ = emitNDJSONLine(w, rec)
+			}
+			if len(seen) == 0 {
+				// v7.4x: calendar_event metadata is not backfilled into the
+				// REST-fed store, so there is nothing to overlay. Emit a valid
+				// empty array rather than empty stdout.
+				fmt.Fprintln(w, "[]")
 			}
 			return nil
 		},

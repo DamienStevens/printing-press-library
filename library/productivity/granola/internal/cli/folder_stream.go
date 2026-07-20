@@ -4,6 +4,7 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -28,6 +29,9 @@ func newFolderListCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List folders (documentLists) from cache",
+		Example: strings.Trim(`
+  granola-pp-cli folder list
+  granola-pp-cli folder list --json`, "\n"),
 		Annotations: map[string]string{
 			"mcp:read-only": "true",
 		},
@@ -62,6 +66,9 @@ func newFolderStreamCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "stream <folder-id-or-name>",
 		Short: "ndjson stream of meetings in a folder with notes + a named panel inlined",
+		Example: strings.Trim(`
+  granola-pp-cli folder stream "Customer Calls"
+  granola-pp-cli folder stream "Customer Calls" --panel summary`, "\n"),
 		Annotations: map[string]string{
 			"mcp:read-only": "true",
 		},

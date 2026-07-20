@@ -7,8 +7,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
+	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/cliutil"
 	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/granola"
 	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/granola/safestorage"
 	"github.com/spf13/cobra"
@@ -49,62 +51,131 @@ func (r CacheSyncResult) TotalRows() int {
 // emit one ndjson summary line so downstream agents and existing sync
 // callers see a consistent shape.
 func newSyncCacheCmd(flags *rootFlags) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "sync",
-		Short: "Sync Granola's local cache file into the SQLite store",
-		Long: `Granola's public API exposes only a thin slice of features. Most
-useful data — notes, transcripts, panels, folders, recipes, chat
-threads — lives in the desktop app's cache file. This command reads
-that cache and upserts every row into the local SQLite store so the
-'meetings', 'attendee', 'folder', 'stats', and 'memo' commands can
-read offline.
+	// Inherit the full generator-emitted sync surface (--resources, --since,
+	// --db, --max-pages, --full, …) so `sync` accepts every flag the data
+	// pipeline expects, then layer the v7.4x behavior on top: a best-effort
+	// desktop-cache attempt (sealed on v7.4x+) followed by the framework REST
+	// sync (notes/folders) + enrich of the rich tables.
+	cmd := newSyncCmd(flags)
+	cmd.Short = "Sync Granola into the local store (v7.4x: public REST API + enrich)"
+	cmd.Long = `On Granola v7.4x+ the encrypted desktop store is sealed (app-private
+behind Granola's macOS Keychain access group), so this command syncs notes and
+folders from the public REST API (GRANOLA_API_KEY), then enriches meetings,
+transcripts, and attendees from the /v1/notes/{id} detail endpoint — plus human
+notes via Granola's official MCP when connected. On a pre-7.4x desktop whose
+cache still decrypts, it hydrates from that cache instead.
 
-The hydration is idempotent: re-running replaces every row.`,
-		Annotations: map[string]string{
-			"mcp:read-only": "false",
-			// touches local SQLite but does not write external state.
-		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if dryRunOK(flags) {
-				return nil
-			}
+The rich tables are keyed by REST not_ ids; a stale pre-7.4x store may still
+hold UUID-keyed rows. For a clean REST-only store:
+  rm ~/.local/share/granola-pp-cli/data.db && granola-pp-cli sync --full`
+	// Override the generic framework example (which lists non-existent resources
+	// like channels,messages) with Granola's real syncable surface.
+	cmd.Example = "  granola-pp-cli sync                      # notes + folders, enrich 50 most-recent\n" +
+		"  granola-pp-cli sync --full              # sync + enrich the whole library\n" +
+		"  granola-pp-cli sync --since 7d          # incremental since 7 days ago\n" +
+		"  granola-pp-cli sync --resources folders # folders only (skip note-detail enrich)"
+	frameworkRunE := cmd.RunE
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+		if dryRunOK(flags) {
+			return nil
+		}
+		if dbp, _ := cmd.Flags().GetString("db"); dbp != "" {
+			granolaStoreOverride = dbp
+		}
+		// 1. Best-effort desktop cache (pre-7.4x). Sealed on v7.4x+ → fall through.
+		//    Skipped under verify: it touches real Keychain + internal-API state
+		//    the mock HTTP server can't stand in for; the framework REST sync
+		//    below is what the data-pipeline gate exercises.
+		if !cliutil.IsVerifyEnv() {
 			res, err := runCacheSync(cmd.Context())
-			if err != nil {
+			if err == nil {
+				summary := map[string]any{
+					"event":               "sync_summary",
+					"source":              "granola_cache",
+					"version":             res.Version,
+					"meetings":            res.Meetings,
+					"attendees":           res.Attendees,
+					"transcript_segments": res.Segments,
+					"folders":             res.Folders,
+					"folder_memberships":  res.Memberships,
+					"panel_templates":     res.Panels,
+					"recipes":             res.Recipes,
+					"workspaces":          res.Workspaces,
+					"chat_threads":        res.ChatThreads,
+					"chat_messages":       res.ChatMessages,
+					"documents_fetched":   res.DocumentsFetched,
+				}
+				if res.HydrateErr != nil {
+					summary["documents_fetch_error"] = res.HydrateErr.Error()
+				}
+				b, _ := json.Marshal(summary)
+				fmt.Fprintln(cmd.OutOrStdout(), string(b))
+				if res.HydrateErr != nil {
+					fmt.Fprintf(cmd.ErrOrStderr(), "warning: documents API hydrate failed: %v\n", res.HydrateErr)
+				}
+				if res.StateWriteErr != nil {
+					fmt.Fprintf(cmd.ErrOrStderr(), "warning: failed to write sync state: %v\n", res.StateWriteErr)
+				}
+				return nil
+			} else if !errors.Is(err, safestorage.ErrKeyUnavailable) &&
+				!errors.Is(err, safestorage.ErrDecryptFailed) &&
+				!errors.Is(err, safestorage.ErrUnsupportedPlatform) &&
+				!errors.Is(err, os.ErrNotExist) {
+				// Fall through to REST whenever the desktop store is simply
+				// unusable: sealed (v7.4x+), unsupported platform, or absent
+				// (a REST-only machine with no Granola desktop app — the common
+				// published-CLI case). Surface only a genuinely corrupt present
+				// cache rather than masking it.
 				return err
 			}
-			summary := map[string]any{
-				"event":               "sync_summary",
-				"source":              "granola_cache",
-				"version":             res.Version,
-				"meetings":            res.Meetings,
-				"attendees":           res.Attendees,
-				"transcript_segments": res.Segments,
-				"folders":             res.Folders,
-				"folder_memberships":  res.Memberships,
-				"panel_templates":     res.Panels,
-				"recipes":             res.Recipes,
-				"workspaces":          res.Workspaces,
-				"chat_threads":        res.ChatThreads,
-				"chat_messages":       res.ChatMessages,
-				"documents_fetched":   res.DocumentsFetched,
-			}
-			if res.HydrateErr != nil {
-				summary["documents_fetch_error"] = res.HydrateErr.Error()
-			}
-			b, _ := json.Marshal(summary)
-			fmt.Fprintln(cmd.OutOrStdout(), string(b))
-			// Surface the hydrate error as a non-fatal warning to stderr
-			// so the user sees it but the sync still reports what it
-			// successfully synced from the cache (transcripts, folders,
-			// recipes, panels, chats).
-			if res.HydrateErr != nil {
-				fmt.Fprintf(cmd.ErrOrStderr(), "warning: documents API hydrate failed: %v\n", res.HydrateErr)
-			}
-			if res.StateWriteErr != nil {
-				fmt.Fprintf(cmd.ErrOrStderr(), "warning: failed to write sync state: %v\n", res.StateWriteErr)
-			}
+			fmt.Fprintln(cmd.ErrOrStderr(), "note: desktop store unavailable; syncing via public REST API + enrich")
+		}
+		// 2. Framework REST sync (notes/folders) with the inherited flags.
+		if err := frameworkRunE(cmd, args); err != nil {
+			return err
+		}
+		// 3. Enrich the rich tables from the REST detail endpoint (+ MCP notes).
+		//    Skipped under verify (the mock has no per-note detail flow).
+		if cliutil.IsVerifyEnv() {
 			return nil
-		},
+		}
+		// Respect --resources scoping: enrich fetches per-note detail, so it only
+		// applies when notes were in scope. If the user synced only folders, skip
+		// the note-detail fetches rather than pulling 50 unrelated notes.
+		if res, _ := cmd.Flags().GetStringSlice("resources"); len(res) > 0 {
+			notesScoped := false
+			for _, r := range res {
+				if r == "notes" {
+					notesScoped = true
+					break
+				}
+			}
+			if !notesScoped {
+				return nil
+			}
+		}
+		full, _ := cmd.Flags().GetBool("full")
+		lim := 50
+		if full {
+			lim = 0
+		}
+		if isDogfoodEnv() {
+			lim = 2 // bound per-note detail fetches to fit the dogfood timeout
+		}
+		n, notes, req, ferr := enrichRecent(cmd.Context(), flags, lim)
+		summary := map[string]any{
+			"event": "enrich_summary", "source": "rest+enrich",
+			"enriched": n, "requested": req, "human_notes": notes,
+		}
+		if ferr != nil {
+			// The notes/folders base sync already landed; emit the enrich summary,
+			// then exit non-zero so automation can tell a fully synced store from
+			// one whose rich tables are stale. (Under verify this path is skipped.)
+			summary["enrich_error"] = ferr.Error()
+			_ = emitJSON(cmd, flags, summary)
+			return apiErr(fmt.Errorf("enrich failed after base sync (notes/folders synced OK): %w", ferr))
+		}
+		return emitJSON(cmd, flags, summary)
 	}
 	return cmd
 }
@@ -122,7 +193,12 @@ The hydration is idempotent: re-running replaces every row.`,
 // itself cannot be opened — the caller decides whether that is fatal.
 func runCacheSync(ctx context.Context) (CacheSyncResult, error) {
 	started := time.Now()
-	c, err := openGranolaCache()
+	// Load the encrypted desktop cache DIRECTLY (not via the now-soft-failing
+	// openGranolaCache): a cache sync must detect a decrypt failure and abort,
+	// never proceed on an empty cache — SyncFromCache would then wipe the
+	// store's folder_memberships and write nothing. On v7.4x+ this always
+	// errors; the `sync` command falls back to the REST path (see newSyncCmd).
+	c, err := granola.LoadCache("")
 	if err != nil {
 		// PATCH(encrypted-cache): record the decrypt failure so doctor
 		// can report it without itself prompting the Keychain.

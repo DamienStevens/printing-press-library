@@ -10,10 +10,26 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/client"
 	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/cliutil"
+	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/config"
 	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/granola"
 	"github.com/spf13/cobra"
 )
+
+// restNoteRaw fetches one meeting's full detail from the public REST API. Used
+// as the live fallback now that the internal API is sealed on Granola v7.4x+.
+func restNoteRaw(id string) (json.RawMessage, error) {
+	cfg, err := config.Load("")
+	if err != nil {
+		return nil, err
+	}
+	c := client.New(cfg, 30*time.Second, 0)
+	// v7.4x: the old client carried no context; the modern client is
+	// context-first. This leaf helper builds its own client (30s timeout),
+	// so a background context reproduces the reference's bounded behavior.
+	return c.Get(context.Background(), "/v1/notes/"+id, map[string]string{"include": "transcript"})
+}
 
 func newMeetingsCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
@@ -182,6 +198,10 @@ func newMeetingsGetCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <id>",
 		Short: "Get one meeting by id",
+		Example: strings.Trim(`
+  granola-pp-cli meetings get not_06Yq6JtogRihEr
+  granola-pp-cli meetings get not_06Yq6JtogRihEr --json
+  granola-pp-cli meetings get not_06Yq6JtogRihEr --data-source live`, "\n"),
 		Annotations: map[string]string{
 			"mcp:read-only": "true",
 		},
@@ -214,17 +234,17 @@ func newMeetingsGetCmd(flags *rootFlags) *cobra.Command {
 					}
 				}
 			}
-			// Fallback: live.
-			if flags.dataSource != "local" {
-				ic, ierr := granola.NewInternalClient()
-				if ierr == nil {
-					docs, derr := ic.GetDocumentsBatch([]string{id})
-					if derr == nil && len(docs) > 0 {
-						return emitJSON(cmd, flags, flattenDocForJSON(nil, &docs[0]))
+			// Fallback: live public REST for not_ ids (the internal API is sealed
+			// on v7.4x+). Returns the raw note detail.
+			if flags.dataSource != "local" && strings.HasPrefix(id, "not_") {
+				if raw, rerr := restNoteRaw(id); rerr == nil {
+					var v any
+					if json.Unmarshal(raw, &v) == nil {
+						return emitJSON(cmd, flags, v)
 					}
 				}
 			}
-			return notFoundErr(fmt.Errorf("meeting %s not found", id))
+			return notFoundErr(fmt.Errorf("meeting %s not found in the local store; run 'granola-pp-cli sync' first", id))
 		},
 	}
 	return cmd
@@ -234,7 +254,10 @@ func newMeetingsFetchBatchCmd(flags *rootFlags) *cobra.Command {
 	var idsCSV string
 	cmd := &cobra.Command{
 		Use:   "fetch-batch",
-		Short: "Fetch multiple meetings by id via the internal API",
+		Short: "Fetch multiple meetings by id from the public API",
+		Example: strings.Trim(`
+  granola-pp-cli meetings fetch-batch --ids not_06Yq6JtogRihEr,not_1a2b3c4d5e6f
+  granola-pp-cli meetings fetch-batch --ids not_06Yq6JtogRihEr --json`, "\n"),
 		Annotations: map[string]string{
 			"mcp:read-only": "true",
 		},
@@ -245,19 +268,19 @@ func newMeetingsFetchBatchCmd(flags *rootFlags) *cobra.Command {
 			if dryRunOK(flags) {
 				return nil
 			}
+			// The internal batch endpoint is sealed on v7.4x+; fetch each id
+			// from the public REST API instead.
 			ids := splitAndTrim(idsCSV)
-			ic, err := granola.NewInternalClient()
-			if err != nil {
-				return authErr(err)
-			}
-			docs, err := ic.GetDocumentsBatch(ids)
-			if err != nil {
-				return apiErr(err)
-			}
-			out := make([]any, 0, len(docs))
-			for _, d := range docs {
-				d := d
-				out = append(out, flattenDocForJSON(nil, &d))
+			out := make([]any, 0, len(ids))
+			for _, id := range ids {
+				raw, err := restNoteRaw(id)
+				if err != nil {
+					return apiErr(fmt.Errorf("fetch meeting %s: %w", id, err))
+				}
+				var v any
+				if json.Unmarshal(raw, &v) == nil {
+					out = append(out, v)
+				}
 			}
 			return emitJSON(cmd, flags, out)
 		},
@@ -270,6 +293,9 @@ func newMeetingsDeleteCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete <id>",
 		Short: "Soft-delete a meeting (sets deleted_at)",
+		Example: strings.Trim(`
+  granola-pp-cli meetings delete not_06Yq6JtogRihEr --dry-run
+  granola-pp-cli meetings delete not_06Yq6JtogRihEr`, "\n"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				return cmd.Help()
@@ -283,15 +309,7 @@ func newMeetingsDeleteCmd(flags *rootFlags) *cobra.Command {
 				fmt.Fprintf(cmd.OutOrStdout(), `{"verify":true,"action":"delete","id":%q}`+"\n", id)
 				return nil
 			}
-			ic, err := granola.NewInternalClient()
-			if err != nil {
-				return authErr(err)
-			}
-			if err := ic.DeleteDocument(id); err != nil {
-				return apiErr(err)
-			}
-			fmt.Fprintf(cmd.OutOrStdout(), `{"deleted":true,"id":%q}`+"\n", id)
-			return nil
+			return apiErr(fmt.Errorf("meeting delete is unavailable: it requires Granola's internal API, sealed on Granola v7.4x+ (the public REST API is read-only)"))
 		},
 	}
 	return cmd
@@ -301,6 +319,9 @@ func newMeetingsRestoreCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "restore <id>",
 		Short: "Restore a soft-deleted meeting",
+		Example: strings.Trim(`
+  granola-pp-cli meetings restore not_06Yq6JtogRihEr --dry-run
+  granola-pp-cli meetings restore not_06Yq6JtogRihEr`, "\n"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				return cmd.Help()
@@ -314,15 +335,7 @@ func newMeetingsRestoreCmd(flags *rootFlags) *cobra.Command {
 				fmt.Fprintf(cmd.OutOrStdout(), `{"verify":true,"action":"restore","id":%q}`+"\n", id)
 				return nil
 			}
-			ic, err := granola.NewInternalClient()
-			if err != nil {
-				return authErr(err)
-			}
-			if err := ic.RestoreDocument(id); err != nil {
-				return apiErr(err)
-			}
-			fmt.Fprintf(cmd.OutOrStdout(), `{"restored":true,"id":%q}`+"\n", id)
-			return nil
+			return apiErr(fmt.Errorf("meeting restore is unavailable: it requires Granola's internal API, sealed on Granola v7.4x+ (the public REST API is read-only)"))
 		},
 	}
 	return cmd

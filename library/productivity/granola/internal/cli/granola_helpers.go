@@ -6,13 +6,16 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/granola"
+	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/granola/safestorage"
 	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/store"
 	"github.com/spf13/cobra"
 )
@@ -33,16 +36,90 @@ import (
 //     directly (show, notes-show, memo, export, tiptap) returns "meeting
 //     not in cache" even when sync has run.
 func openGranolaCache() (*granola.Cache, error) {
-	path, _ := granola.ResolveCachePath()
 	c, err := granola.LoadCache("")
 	if err != nil {
-		return nil, fmt.Errorf("loading Granola cache at %s: %w", path, err)
+		// SOFT-FAIL (v7.4x+): Granola sealed the desktop store behind its own
+		// Keychain access group, so a third-party binary can never decrypt it.
+		// Rather than hard-fail every read command at this gate, degrade to the
+		// local SQLite store (populated by `sync` from REST) plus whatever each
+		// command can fetch live. doctor reports the desktop-store status
+		// honestly; commands serve store data instead of erroring. The Cache
+		// accessors are nil-safe, so an empty cache is a valid degraded value.
+		//
+		// Only the sealed-store errors are EXPECTED. Surface anything else (a
+		// genuinely corrupt cache file) so it isn't silently masked as "no data".
+		if !errors.Is(err, safestorage.ErrKeyUnavailable) &&
+			!errors.Is(err, safestorage.ErrDecryptFailed) &&
+			!errors.Is(err, safestorage.ErrUnsupportedPlatform) {
+			stderr("warning: unexpected Granola cache error (serving local store only): %v", err)
+		}
+		c = &granola.Cache{}
 	}
-	// Best-effort document backfill; errors logged but not fatal so
-	// commands that only need transcripts/folders still work when the
-	// store is unavailable.
+	// Backfill cache.Documents from the SQLite meetings table so the commands
+	// that read cache.Documents (show, notes-show, memo, export, tiptap) work
+	// off synced data whether or not the encrypted store was readable.
 	_ = backfillDocumentsFromStore(c)
+	// Backfill cache.Transcripts from transcript_segments so the transcript
+	// commands (transcript get, talktime, preflight, collect, memo/export
+	// transcript stream) read the REST-fed segments instead of the dead
+	// internal API.
+	_ = backfillTranscriptsFromStore(c)
 	return c, nil
+}
+
+// backfillTranscriptsFromStore populates c.Transcripts from the
+// transcript_segments table (REST-fed by `enrich`). Segment timestamps are
+// stored as Unix millis; the in-memory TranscriptSegment carries ISO strings,
+// so we convert back. Quietly no-ops when the store is absent or the cache
+// already carries transcripts (pre-encryption Granola / test fixtures).
+func backfillTranscriptsFromStore(c *granola.Cache) error {
+	if c == nil {
+		return nil
+	}
+	if c.Transcripts == nil {
+		c.Transcripts = map[string][]granola.TranscriptSegment{}
+	}
+	if len(c.Transcripts) > 0 {
+		return nil
+	}
+	ctx := context.Background()
+	s, err := openGranolaStoreRead(ctx)
+	if err != nil || s == nil {
+		return err
+	}
+	defer s.Close()
+	rows, err := s.DB().QueryContext(ctx, `
+		SELECT meeting_id, source, text, start_ts_ms, end_ts_ms, confidence
+		FROM transcript_segments ORDER BY meeting_id, idx`)
+	if err != nil {
+		return fmt.Errorf("backfill: query transcript_segments: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var mid, source, text string
+		var startMs, endMs sql.NullInt64
+		var conf sql.NullFloat64
+		if err := rows.Scan(&mid, &source, &text, &startMs, &endMs, &conf); err != nil {
+			return fmt.Errorf("backfill: scan segment: %w", err)
+		}
+		c.Transcripts[mid] = append(c.Transcripts[mid], granola.TranscriptSegment{
+			Source:         source,
+			Text:           text,
+			StartTimestamp: millisToISO(startMs),
+			EndTimestamp:   millisToISO(endMs),
+			Confidence:     conf.Float64,
+		})
+	}
+	return rows.Err()
+}
+
+// millisToISO renders stored Unix-millis back to an RFC3339 string (UTC), or ""
+// for a null/zero timestamp. ParseISO round-trips it for the talk-time math.
+func millisToISO(ms sql.NullInt64) string {
+	if !ms.Valid || ms.Int64 == 0 {
+		return ""
+	}
+	return time.UnixMilli(ms.Int64).UTC().Format(time.RFC3339Nano)
 }
 
 // backfillDocumentsFromStore reads rows from the meetings table that
@@ -105,11 +182,32 @@ func backfillDocumentsFromStore(c *granola.Cache) error {
 	return rows.Err()
 }
 
+// isDogfoodEnv reports whether the CLI runs under `cli-printing-press dogfood`
+// (PRINTING_PRESS_DOGFOOD=1). This printed CLI predates cliutil.IsDogfoodEnv, so
+// it reads the env var directly. Network-heavy and interactive novel commands
+// curtail work under it to fit the dogfood runner's per-command timeout.
+func isDogfoodEnv() bool { return os.Getenv("PRINTING_PRESS_DOGFOOD") == "1" }
+
+// granolaStoreOverride, when non-empty, redirects the local SQLite store path.
+// Set by `sync --db <path>` so the whole sync (framework notes/folders +
+// enrich) targets one store. Empty = the platform data dir.
+// ponytail: process-scoped global (one CLI invocation = one command); a
+// threaded param would churn every openGranolaStore caller for no gain.
+var granolaStoreOverride string
+
+// granolaStorePath resolves the store path, honoring a `--db` override.
+func granolaStorePath() string {
+	if granolaStoreOverride != "" {
+		return granolaStoreOverride
+	}
+	return defaultDBPath("granola-pp-cli")
+}
+
 // openGranolaStore opens (or creates) the SQLite store and ensures the
 // granola-specific schema is in place.
 func openGranolaStore(ctx context.Context) (*store.Store, error) {
-	dbPath := defaultDBPath("granola-pp-cli")
-	if err := os.MkdirAll(strings.TrimSuffix(dbPath, "/data.db"), 0o755); err != nil {
+	dbPath := granolaStorePath()
+	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
 		return nil, fmt.Errorf("creating data dir: %w", err)
 	}
 	s, err := store.OpenWithContext(ctx, dbPath)
@@ -127,7 +225,7 @@ func openGranolaStore(ctx context.Context) (*store.Store, error) {
 // if the database hasn't been created yet so the caller can emit a
 // helpful "run sync first" message.
 func openGranolaStoreRead(ctx context.Context) (*store.Store, error) {
-	dbPath := defaultDBPath("granola-pp-cli")
+	dbPath := granolaStorePath()
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		return nil, nil
 	}

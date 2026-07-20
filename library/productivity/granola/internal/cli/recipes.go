@@ -27,6 +27,10 @@ func newRecipesListCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List recipes (public/user/shared)",
+		Example: strings.Trim(`
+  granola-pp-cli recipes list
+  granola-pp-cli recipes list --source public --top-usage
+  granola-pp-cli recipes list --tag summary --json`, "\n"),
 		Annotations: map[string]string{
 			"mcp:read-only": "true",
 		},
@@ -110,6 +114,9 @@ func newRecipesDescribeCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "describe <slug-or-id>",
 		Short: "Show one recipe and the meetings that used it",
+		Example: strings.Trim(`
+  granola-pp-cli recipes describe action-items
+  granola-pp-cli recipes describe action-items --json`, "\n"),
 		Annotations: map[string]string{
 			"mcp:read-only": "true",
 		},

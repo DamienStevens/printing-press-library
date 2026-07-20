@@ -3,10 +3,14 @@
 package cli
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/client"
+	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/config"
 	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/granola"
 	"github.com/spf13/cobra"
 )
@@ -86,10 +90,16 @@ M:SS mark.`,
 				return nil
 			case "srt":
 				w := cmd.OutOrStdout()
+				// SRT cues are RELATIVE to the meeting start, not wall-clock —
+				// a 2pm meeting starts at 00:00:00, not 14:00:00.
+				var base time.Time
+				if len(segs) > 0 {
+					base, _ = granola.ParseISO(segs[0].StartTimestamp)
+				}
 				for i, s := range segs {
 					st, _ := granola.ParseISO(s.StartTimestamp)
 					en, _ := granola.ParseISO(s.EndTimestamp)
-					fmt.Fprintf(w, "%d\n%s --> %s\n", i+1, srtTime(st), srtTime(en))
+					fmt.Fprintf(w, "%d\n%s --> %s\n", i+1, srtOffset(st, base), srtOffset(en, base))
 					if speaker {
 						fmt.Fprintf(w, "[%s] %s\n\n", s.Source, s.Text)
 					} else {
@@ -109,29 +119,59 @@ M:SS mark.`,
 }
 
 // loadTranscript returns segments + a string describing the source
-// ("cache" or "live"). Honors flags.dataSource.
+// ("cache" or "live"). Honors flags.dataSource. On v7.4x+ the internal API is
+// sealed, so the live path is the PUBLIC REST detail endpoint
+// (/v1/notes/{id}?include=transcript), not the old internal client.
 func loadTranscript(id, dataSource string) ([]granola.TranscriptSegment, string, error) {
 	if dataSource != "live" {
-		c, err := openGranolaCache()
-		if err == nil {
-			segs := c.TranscriptByID(id)
-			if len(segs) > 0 {
-				return segs, "cache", nil
-			}
+		// openGranolaCache soft-fails to the SQLite store; TranscriptByID reads
+		// the segments the REST `enrich`/`sync` populated.
+		c, _ := openGranolaCache()
+		if segs := c.TranscriptByID(id); len(segs) > 0 {
+			return segs, "cache", nil
+		}
+		if dataSource == "local" {
+			return nil, "", notFoundErr(fmt.Errorf("transcript for %s not in local store; run 'granola-pp-cli sync' (or 'enrich') first, or use --data-source live", id))
 		}
 	}
-	if dataSource == "local" {
-		return nil, "", notFoundErr(fmt.Errorf("transcript for %s not in cache; rerun Granola or use --data-source live", id))
-	}
-	ic, err := granola.NewInternalClient()
+	segs, err := fetchTranscriptREST(id)
 	if err != nil {
-		return nil, "", authErr(err)
-	}
-	segs, err := ic.GetDocumentTranscript(id)
-	if err != nil {
-		return nil, "", apiErr(err)
+		return nil, "", err
 	}
 	return segs, "live", nil
+}
+
+// fetchTranscriptREST pulls a transcript live from the public REST API and maps
+// it to the in-memory segment shape.
+func fetchTranscriptREST(id string) ([]granola.TranscriptSegment, error) {
+	cfg, err := config.Load("")
+	if err != nil {
+		return nil, configErr(err)
+	}
+	c := client.New(cfg, 30*time.Second, 0)
+	// v7.4x leaf REST helper with its own 30s-timeout client; a background
+	// context reproduces the reference's bounded, cancellation-free behavior.
+	raw, err := c.Get(context.Background(), "/v1/notes/"+id, map[string]string{"include": "transcript"})
+	if err != nil {
+		return nil, apiErr(fmt.Errorf("fetch transcript for %s from the public API: %w", id, err))
+	}
+	var d restNoteDetail
+	if err := json.Unmarshal(raw, &d); err != nil {
+		return nil, apiErr(fmt.Errorf("parse transcript for %s: %w", id, err))
+	}
+	if len(d.Transcript) == 0 {
+		return nil, notFoundErr(fmt.Errorf("no transcript for %s (the meeting may not have been recorded/transcribed)", id))
+	}
+	segs := make([]granola.TranscriptSegment, 0, len(d.Transcript))
+	for _, t := range d.Transcript {
+		segs = append(segs, granola.TranscriptSegment{
+			Source:         t.Speaker.Source,
+			Text:           t.Text,
+			StartTimestamp: t.StartTime,
+			EndTimestamp:   t.EndTime,
+		})
+	}
+	return segs, nil
 }
 
 // parseClock parses "M:SS" or "H:MM:SS" into a Duration.
@@ -173,13 +213,19 @@ func trimSegmentsAfter(segs []granola.TranscriptSegment, cut time.Duration) []gr
 	return out
 }
 
-func srtTime(t time.Time) string {
-	if t.IsZero() {
+// srtOffset formats t as an SRT timestamp RELATIVE to base (the meeting start).
+// A zero base or t falls back to 00:00:00,000.
+func srtOffset(t, base time.Time) string {
+	if t.IsZero() || base.IsZero() {
 		return "00:00:00,000"
 	}
-	h := t.Hour()
-	m := t.Minute()
-	s := t.Second()
-	ms := t.Nanosecond() / 1_000_000
+	d := t.Sub(base)
+	if d < 0 {
+		d = 0
+	}
+	h := int(d / time.Hour)
+	m := int((d % time.Hour) / time.Minute)
+	s := int((d % time.Minute) / time.Second)
+	ms := int((d % time.Second) / time.Millisecond)
 	return fmt.Sprintf("%02d:%02d:%02d,%03d", h, m, s, ms)
 }

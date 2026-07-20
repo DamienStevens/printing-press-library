@@ -30,6 +30,10 @@ func newDuplicatesScanCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "scan",
 		Short: "Hash (title, day-bucket, sorted-attendees) and surface duplicates",
+		Example: strings.Trim(`
+  granola-pp-cli duplicates scan
+  granola-pp-cli duplicates scan --since 30d
+  granola-pp-cli duplicates scan --root ~/Documents/transcripts --since 2026-07-01`, "\n"),
 		Annotations: map[string]string{
 			"mcp:read-only": "true",
 		},

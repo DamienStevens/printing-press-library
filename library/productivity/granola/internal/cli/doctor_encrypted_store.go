@@ -6,10 +6,29 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/granola"
 )
+
+// collectMCPReport reports the official-MCP connection status passively (no
+// network, no token rotation) — Keychain presence + locally-stored expiry.
+// Optional surface: absent MCP only means private/human notes are unavailable.
+func collectMCPReport(report map[string]any) {
+	access, err := kcGet(kcAccessToken)
+	if err != nil || access == "" {
+		report["granola_mcp"] = "INFO not connected (optional — run 'granola-pp-cli mcp-auth login' for private/human notes)"
+		return
+	}
+	if expStr, e := kcGet(kcExpiry); e == nil {
+		if unix, e2 := strconv.ParseInt(expStr, 10, 64); e2 == nil && !time.Now().Before(time.Unix(unix, 0)) {
+			report["granola_mcp"] = "INFO token expired — run 'granola-pp-cli mcp-auth login' to reconnect"
+			return
+		}
+	}
+	report["granola_mcp"] = "connected (private/human notes available)"
+}
 
 // PATCH(encrypted-cache): doctor section that observes the encrypted-store
 // state without itself invoking safestorage.Decrypt. The four states it
@@ -46,8 +65,8 @@ func collectEncryptedStoreReport(report map[string]any) {
 	// Both .enc paths exist (or at least one). Consult sync state.
 	state, err := granola.ReadSyncState()
 	if granola.IsSyncStateMissing(err) {
-		report["encrypted_store"] = "INFO present; run `granola-pp-cli sync` to authorize Keychain access"
-		report["encrypted_store_hint"] = "First sync triggers the macOS Keychain prompt. Click Always Allow."
+		report["encrypted_store"] = "INFO present but app-private on Granola v7.4x+ (sealed behind Granola's Keychain access group)"
+		report["encrypted_store_hint"] = "Not third-party-readable. Run `granola-pp-cli sync` to populate the store from the public REST API; `mcp-auth login` adds your private notes."
 		return
 	}
 	if err != nil {
@@ -73,6 +92,15 @@ func collectEncryptedStoreReport(report map[string]any) {
 			report["encrypted_store_hint"] = "Decrypt succeeded; document hydration from /v2/get-documents failed (auth or network). Cached transcripts/folders/recipes are still usable; meetings list may be stale."
 		}
 	case granola.DecryptStatusFailed:
+		// v7.4x+: Granola sealed the desktop store behind its own Keychain
+		// access group, so a third-party binary can never decrypt it. That is
+		// EXPECTED on current Granola — the CLI uses the public REST API +
+		// official MCP — so report it as INFO, not a failure.
+		if state.LastDecryptErrorClass == "key_unavailable" {
+			report["encrypted_store"] = "INFO desktop store app-private on Granola v7.4x+ (using public REST API + official MCP)"
+			report["encrypted_store_hint"] = "Expected on current Granola. 'granola-pp-cli sync' populates the store from REST; 'mcp-auth login' adds your private notes."
+			return
+		}
 		msg := "ERROR last sync failed to decrypt"
 		if state.LastDecryptErrorClass != "" {
 			msg = fmt.Sprintf("ERROR last sync failed to decrypt (%s)", state.LastDecryptErrorClass)
@@ -82,8 +110,6 @@ func collectEncryptedStoreReport(report map[string]any) {
 			report["encrypted_store_error"] = state.LastDecryptErrorMsg
 		}
 		switch state.LastDecryptErrorClass {
-		case "key_unavailable":
-			report["encrypted_store_hint"] = "Sign into Granola desktop and re-run sync. Click Always Allow on the Keychain prompt."
 		case "decrypt_failed":
 			report["encrypted_store_hint"] = "Encryption scheme may have drifted. File an issue at the Printing Press repo with this doctor output."
 		case "unsupported_platform":

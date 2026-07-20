@@ -4,6 +4,7 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/granola"
 	"github.com/spf13/cobra"
@@ -21,6 +22,9 @@ For AI summaries use 'panel get'; for transcript use 'transcript get'.
 
 Renders documents[id].notes (TipTap JSON) to markdown. Falls back to
 notes_markdown then notes_plain when the TipTap blob is empty.`,
+		Example: strings.Trim(`
+  granola-pp-cli notes-show not_06Yq6JtogRihEr
+  granola-pp-cli notes-show not_06Yq6JtogRihEr --json`, "\n"),
 		Annotations: map[string]string{
 			"mcp:read-only": "true",
 		},

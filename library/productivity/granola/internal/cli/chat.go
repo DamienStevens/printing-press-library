@@ -5,6 +5,7 @@ package cli
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/granola"
 	"github.com/spf13/cobra"
@@ -24,6 +25,10 @@ func newChatListCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list [<meeting-id>]",
 		Short: "List chat threads (all, or anchored to a meeting)",
+		Example: strings.Trim(`
+  granola-pp-cli chat list
+  granola-pp-cli chat list not_06Yq6JtogRihEr
+  granola-pp-cli chat list --json`, "\n"),
 		Annotations: map[string]string{
 			"mcp:read-only": "true",
 		},

@@ -25,24 +25,27 @@ func newNotesListCmd(flags *rootFlags) *cobra.Command {
 		Example:     "  granola-pp-cli notes list",
 		Annotations: map[string]string{"pp:endpoint": "notes.list", "pp:method": "GET", "pp:path": "/v1/notes", "mcp:read-only": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			path := "/v1/notes"
 			c, err := flags.newClient()
 			if err != nil {
 				return err
 			}
-
-			path := "/v1/notes"
-			data, prov, err := resolvePaginatedRead(cmd.Context(), c, flags, "notes", path, map[string]string{
-				"created_before": fmt.Sprintf("%v", flagCreatedBefore),
-				"created_after":  fmt.Sprintf("%v", flagCreatedAfter),
-				"updated_after":  fmt.Sprintf("%v", flagUpdatedAfter),
-				"cursor":         fmt.Sprintf("%v", flagCursor),
-				"page_size":      fmt.Sprintf("%v", flagPageSize),
-			}, nil, flagAll, "cursor", "", "hasMore")
+			data, prov, err := resolvePaginatedReadWithStrategy(cmd.Context(), c, flags, "auto", "notes", path, map[string]string{
+				"created_before": formatCLIParamValue(flagCreatedBefore),
+				"created_after":  formatCLIParamValue(flagCreatedAfter),
+				"updated_after":  formatCLIParamValue(flagUpdatedAfter),
+				"cursor":         formatCLIParamValue(flagCursor),
+				"page_size":      formatCLIParamValue(flagPageSize),
+			}, nil, flagAll, "cursor", "cursor", "page_size", 10, "cursor", "hasMore", cmd.ErrOrStderr())
 			if err != nil {
 				return classifyAPIError(err, flags)
 			}
-			// Print provenance to stderr for human-facing output
-			{
+			// Print provenance to stderr for human-facing output only.
+			// Machine-format flags (--json, --csv, --compact, --quiet, --plain,
+			// --select) and piped stdout suppress this line; the JSON envelope
+			// already carries meta.source for those consumers.
+			// SYNC: keep this gate aligned with command_promoted.go.tmpl.
+			if wantsHumanTable(cmd.OutOrStdout(), flags) {
 				var countItems []json.RawMessage
 				_ = json.Unmarshal(data, &countItems)
 				printProvenance(cmd, len(countItems), prov)
@@ -78,7 +81,7 @@ func newNotesListCmd(flags *rootFlags) *cobra.Command {
 					return nil
 				}
 			}
-			return printOutputWithFlags(cmd.OutOrStdout(), data, flags)
+			return printOutputWithFlagsMeta(cmd.OutOrStdout(), data, flags, map[string]any{"source": "live"})
 		},
 	}
 	cmd.Flags().StringVar(&flagCreatedBefore, "created-before", "", "Created before")

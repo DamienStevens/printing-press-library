@@ -9,9 +9,11 @@ import (
 
 func newNotesCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:    "notes",
-		Short:  "Manage notes",
-		Hidden: true,
+		Use:         "notes",
+		Short:       "List and get notes",
+		Hidden:      true,
+		Annotations: map[string]string{"mcp:read-only": "true", "pp:typed-exit-codes": "0,2"},
+		RunE:        parentNoSubcommandRunE(flags),
 	}
 
 	cmd.AddCommand(newNotesGetCmd(flags))

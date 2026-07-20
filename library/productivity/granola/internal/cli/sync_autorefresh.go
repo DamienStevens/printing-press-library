@@ -94,7 +94,7 @@ func runApiSync(ctx context.Context, flags *rootFlags) (ApiSyncResult, error) {
 		// Auto-refresh defaults: no --since cursor reset, no --full,
 		// no max-pages override (newSyncCmd's default 100 wins), no
 		// latest-only, no user params.
-		res := syncResource(c, db, resource, "", false, 0, false, nil)
+		res := syncResource(ctx, c, db, resource, "", false, 0, false, false, nil, nil)
 		switch {
 		case res.Err != nil:
 			errCount++

@@ -19,7 +19,7 @@ func newFoldersPromotedCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "folders",
 		Short:       "List folders",
-		Long:        "Shortcut for 'folders list'. List folders",
+		Long:        "List folders",
 		Example:     "  granola-pp-cli folders",
 		Annotations: map[string]string{"pp:endpoint": "folders.list", "pp:method": "GET", "pp:path": "/v1/folders", "mcp:read-only": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -29,19 +29,19 @@ func newFoldersPromotedCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			path := "/v1/folders"
-			data, prov, err := resolvePaginatedRead(cmd.Context(), c, flags, "folders", path, map[string]string{
-				"cursor":    fmt.Sprintf("%v", flagCursor),
-				"page_size": fmt.Sprintf("%v", flagPageSize),
-			}, nil, flagAll, "cursor", "", "hasMore")
+			data, prov, err := resolvePaginatedReadWithStrategy(cmd.Context(), c, flags, "auto", "folders", path, map[string]string{
+				"cursor":    formatCLIParamValue(flagCursor),
+				"page_size": formatCLIParamValue(flagPageSize),
+			}, nil, flagAll, "cursor", "cursor", "page_size", 10, "cursor", "hasMore", cmd.ErrOrStderr())
 			if err != nil {
 				return classifyAPIError(err, flags)
 			}
-			// Unwrap API response envelopes (e.g. {"status":"success","data":[...]})
-			// so output helpers see the inner data, not the wrapper.
-			data = extractResponseData(data)
-
-			// Print provenance to stderr
-			{
+			// Print provenance to stderr for human-facing output only.
+			// Machine-format flags (--json, --csv, --compact, --quiet, --plain,
+			// --select) and piped stdout suppress this line; the JSON envelope
+			// already carries meta.source for those consumers.
+			// SYNC: keep this gate aligned with command_endpoint.go.tmpl.
+			if wantsHumanTable(cmd.OutOrStdout(), flags) {
 				var countItems []json.RawMessage
 				if json.Unmarshal(data, &countItems) != nil {
 					// Single object, not an array
@@ -79,7 +79,7 @@ func newFoldersPromotedCmd(flags *rootFlags) *cobra.Command {
 					return nil
 				}
 			}
-			return printOutputWithFlags(cmd.OutOrStdout(), data, flags)
+			return printOutputWithFlagsMeta(cmd.OutOrStdout(), data, flags, map[string]any{"source": "live"})
 		},
 	}
 	cmd.Flags().StringVar(&flagCursor, "cursor", "", "Cursor")

@@ -1,0 +1,2 @@
+{"schema_version":2,"id":"granola-auto-refresh","applied_at":"2026-07-20","base_run_id":"20260720-172938","base_printing_press_version":"4.29.0",
+"summary":"Auto-refresh hook: --no-refresh flag + noRefresh field + runAutoRefresh call in the generated root PersistentPreRunE.","reason":"Freshness-as-a-CLI-invariant so agents get a REST-hydrated store without a ceremonial pre-sync; self-gates via noRefreshCommands + GRANOLA_NO_AUTO_REFRESH.","files":["internal/cli/root.go"]}

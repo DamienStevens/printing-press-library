@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/granola"
@@ -32,6 +33,10 @@ func newMemoRunCmd(flags *rootFlags) *cobra.Command {
 the pipeline for those whose full_<id>.md does not yet exist in --to.
 
 Emits ndjson one line per meeting: {id, status: new|skipped|duplicate|error|missing_transcript, files, error}.`,
+		Example: strings.Trim(`
+  granola-pp-cli memo run not_06Yq6JtogRihEr --out ./memos
+  granola-pp-cli memo run --out ./memos --since 7d
+  granola-pp-cli memo run --to ./memos --last 30d --limit 50`, "\n"),
 		Annotations: map[string]string{
 			"pp:typed-exit-codes": "0,1,2,3",
 			// not read-only — writes files
@@ -145,6 +150,9 @@ func newMemoQueueCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "queue",
 		Short: "List meetings whose transcript is cached but whose full_<id>.md is missing",
+		Example: strings.Trim(`
+  granola-pp-cli memo queue --last 7d
+  granola-pp-cli memo queue --since 2026-07-01 --limit 20`, "\n"),
 		Annotations: map[string]string{
 			"mcp:read-only": "true",
 		},

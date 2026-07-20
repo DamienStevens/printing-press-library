@@ -27,6 +27,9 @@ granola.py MEMO contract:
   metadata_<id>.md  — YAML-shaped frontmatter only
 
 Exit codes: 0 success, 1 IO error, 2 missing transcript, 3 duplicate.`,
+		Example: strings.Trim(`
+  granola-pp-cli extract not_06Yq6JtogRihEr --out ./memos
+  granola-pp-cli extract not_06Yq6JtogRihEr -o ./memos --panel summary`, "\n"),
 		Annotations: map[string]string{
 			"mcp:read-only":       "true",
 			"pp:typed-exit-codes": "0,1,2,3",

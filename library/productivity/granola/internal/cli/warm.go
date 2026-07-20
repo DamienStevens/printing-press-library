@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os/exec"
 	"runtime"
+	"strings"
 
 	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/cliutil"
 	"github.com/spf13/cobra"
@@ -19,6 +20,9 @@ func newWarmCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "warm <id> <query>",
 		Short: "Open the Granola desktop app with a meeting + search query (macOS)",
+		Example: strings.Trim(`
+  granola-pp-cli warm not_06Yq6JtogRihEr "Q2 planning"
+  granola-pp-cli warm not_06Yq6JtogRihEr "action items" --launch`, "\n"),
 		Annotations: map[string]string{
 			"mcp:hidden": "true",
 			// mutates user-visible OS state on --launch; intentionally NOT

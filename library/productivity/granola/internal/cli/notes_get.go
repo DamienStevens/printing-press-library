@@ -17,11 +17,23 @@ func newNotesGetCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "get <note_id>",
 		Short:       "Get note",
-		Example:     "  granola-pp-cli notes get 550e8400-e29b-41d4-a716-446655440000",
+		Example:     "  granola-pp-cli notes get not_1d3tmYTlCICgjy",
 		Annotations: map[string]string{"pp:endpoint": "notes.get", "pp:method": "GET", "pp:path": "/v1/notes/{note_id}", "mcp:read-only": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				return cmd.Help()
+				// A missing required positional is a usage error in every output
+				// mode (matches command_promoted.go.tmpl). Machine callers
+				// (--json/--agent) also get a JSON error envelope on stdout;
+				// usageErr sets exit 2.
+				if flags.asJSON {
+					if printErr := printJSONFiltered(cmd.OutOrStdout(), map[string]any{
+						"error": "missing required argument",
+						"usage": fmt.Sprintf("%s%s", cmd.CommandPath(), " <note_id>"),
+					}, flags); printErr != nil {
+						return printErr
+					}
+				}
+				return usageErr(fmt.Errorf("missing required argument\nUsage: %s%s", cmd.CommandPath(), " <note_id>"))
 			}
 			if cmd.Flags().Changed("include") {
 				allowedInclude := []string{"transcript"}
@@ -33,26 +45,32 @@ func newNotesGetCmd(flags *rootFlags) *cobra.Command {
 					}
 				}
 				if !validInclude {
-					fmt.Fprintf(os.Stderr, "warning: --%s %q not in allowed set %v\n", "include", flagInclude, allowedInclude)
+					return fmt.Errorf("invalid value %q for --%s: must be one of %v", flagInclude, "include", allowedInclude)
 				}
 			}
+			path := "/v1/notes/{note_id}"
+			if len(args) < 1 || args[0] == "" {
+				return usageErr(fmt.Errorf("note_id is required\nUsage: %s <%s>", cmd.CommandPath(), "note_id"))
+			}
+			path = replacePathParam(path, "note_id", args[0])
 			c, err := flags.newClient()
 			if err != nil {
 				return err
 			}
-
-			path := "/v1/notes/{note_id}"
-			path = replacePathParam(path, "note_id", args[0])
 			params := map[string]string{}
 			if flagInclude != "" {
-				params["include"] = fmt.Sprintf("%v", flagInclude)
+				params["include"] = formatCLIParamValue(flagInclude)
 			}
-			data, prov, err := resolveRead(cmd.Context(), c, flags, "notes", false, path, params, nil)
+			data, prov, err := resolveReadWithStrategyAndResponsePath(cmd.Context(), c, flags, "auto", "notes", false, path, params, nil, "", cmd.ErrOrStderr())
 			if err != nil {
 				return classifyAPIError(err, flags)
 			}
-			// Print provenance to stderr for human-facing output
-			{
+			// Print provenance to stderr for human-facing output only.
+			// Machine-format flags (--json, --csv, --compact, --quiet, --plain,
+			// --select) and piped stdout suppress this line; the JSON envelope
+			// already carries meta.source for those consumers.
+			// SYNC: keep this gate aligned with command_promoted.go.tmpl.
+			if wantsHumanTable(cmd.OutOrStdout(), flags) {
 				var countItems []json.RawMessage
 				_ = json.Unmarshal(data, &countItems)
 				printProvenance(cmd, len(countItems), prov)
@@ -88,7 +106,7 @@ func newNotesGetCmd(flags *rootFlags) *cobra.Command {
 					return nil
 				}
 			}
-			return printOutputWithFlags(cmd.OutOrStdout(), data, flags)
+			return printOutputWithFlagsMeta(cmd.OutOrStdout(), data, flags, map[string]any{"source": "live"})
 		},
 	}
 	cmd.Flags().StringVar(&flagInclude, "include", "", "Include (one of: transcript)")

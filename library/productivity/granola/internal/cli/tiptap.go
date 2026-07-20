@@ -5,6 +5,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/granola"
 	"github.com/spf13/cobra"
@@ -24,6 +25,10 @@ func newTiptapExtractCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "extract <id>",
 		Short: "Render documents[id].notes (TipTap JSON) as markdown, plain, or json",
+		Example: strings.Trim(`
+  granola-pp-cli tiptap extract not_06Yq6JtogRihEr
+  granola-pp-cli tiptap extract not_06Yq6JtogRihEr --as plain
+  granola-pp-cli tiptap extract not_06Yq6JtogRihEr --as json`, "\n"),
 		Annotations: map[string]string{
 			"mcp:read-only": "true",
 		},

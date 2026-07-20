@@ -5,15 +5,18 @@ package cli
 
 import (
 	"fmt"
+	"os"
+
+	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/cliutil"
 	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/config"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 func newAuthCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "auth",
 		Short: "Manage authentication for Granola",
+		RunE:  parentNoSubcommandRunE(flags),
 	}
 
 	cmd.AddCommand(newAuthSetupCmd(flags))
@@ -36,10 +39,10 @@ func newAuthSetupCmd(_ *rootFlags) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 			fmt.Fprintln(w, "No setup URL is configured for this CLI; check the API's docs.")
-			fmt.Fprintln(w, "")
-			fmt.Fprintln(w, "Then set:")
-			fmt.Fprintln(w, "  export GRANOLA_API_KEY=\"<your-token>\"")
 			fmt.Fprintln(w, "  granola-pp-cli auth set-token <token>")
+			fmt.Fprintln(w, "")
+			fmt.Fprintln(w, "Optional request credentials:")
+			fmt.Fprintln(w, "  export GRANOLA_API_KEY=\"your-token-here\"")
 			if !launch {
 				return nil
 			}
@@ -87,8 +90,10 @@ func newAuthStatusCmd(flags *rootFlags) *cobra.Command {
 				fmt.Fprintln(w, red("Not authenticated"))
 				fmt.Fprintln(w, "")
 				fmt.Fprintln(w, "Set your token:")
-				fmt.Fprintln(w, "  export GRANOLA_API_KEY=\"your-token-here\"")
 				fmt.Fprintf(w, "  granola-pp-cli auth set-token <token>\n")
+				fmt.Fprintln(w, "")
+				fmt.Fprintln(w, "Optional request credentials:")
+				fmt.Fprintln(w, "  export GRANOLA_API_KEY=\"your-token-here\" # Granola public API key (Personal or Enterprise). Optional — only required when using --remote against the public API. Cache and internal API use auto-discovered WorkOS tokens from the local Granola app data.")
 				return authErr(fmt.Errorf("no credentials configured"))
 			}
 
@@ -103,7 +108,7 @@ func newAuthStatusCmd(flags *rootFlags) *cobra.Command {
 func newAuthSetTokenCmd(flags *rootFlags) *cobra.Command {
 	return &cobra.Command{
 		Use:     "set-token <token>",
-		Short:   "Save an API token to the config file",
+		Short:   "Save an API token to the credentials file",
 		Example: "  granola-pp-cli auth set-token YOUR_TOKEN_HERE",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -123,17 +128,35 @@ func newAuthSetTokenCmd(flags *rootFlags) *cobra.Command {
 				return configErr(fmt.Errorf("saving token: %w", err))
 			}
 
-			// JSON envelope: {saved, config_path}.
+			savePath := credentialSavePath(cfg)
+			// JSON envelope: {saved, config_path, credentials_path}.
 			if flags.asJSON {
-				return printJSONFiltered(cmd.OutOrStdout(), map[string]any{
+				out := map[string]any{
 					"saved":       true,
 					"config_path": cfg.Path,
-				}, flags)
+				}
+				if !cfg.AgentcookieManagedByExternalStore() {
+					out["credentials_path"] = savePath
+				}
+				return printJSONFiltered(cmd.OutOrStdout(), out, flags)
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Token saved to %s\n", cfg.Path)
+			fmt.Fprintf(cmd.OutOrStdout(), "Token saved to %s\n", savePath)
 			return nil
 		},
 	}
+}
+
+func credentialSavePath(cfg *config.Config) string {
+	if cfg != nil && cfg.AgentcookieManagedByExternalStore() {
+		return cfg.Path
+	}
+	if path, err := cliutil.CredentialsFilePath(); err == nil {
+		return path
+	}
+	if cfg != nil {
+		return cfg.Path
+	}
+	return ""
 }
 
 func newAuthLogoutCmd(flags *rootFlags) *cobra.Command {

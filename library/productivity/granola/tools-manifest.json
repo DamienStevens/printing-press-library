@@ -1,7 +1,7 @@
 {
   "api_name": "granola",
   "base_url": "https://public-api.granola.ai",
-  "description": "API for accessing meeting data from Granola",
+  "description": "Every Granola feature — plus offline SQLite cross-meeting search, attendee timelines, and a MEMO pipeline runner no other Granola tool has.",
   "mcp_ready": "full",
   "http_transport": "standard",
   "auth": {
@@ -24,7 +24,7 @@
   "tools": [
     {
       "name": "folders_list",
-      "description": "List folders. Optional: cursor, page_size (default: 10). Returns the ListFoldersOutput.",
+      "description": "List folders. Optional: cursor, page_size (default: 10). Returns array of Folder.",
       "method": "GET",
       "path": "/v1/folders",
       "params": [
@@ -65,7 +65,7 @@
     },
     {
       "name": "notes_list",
-      "description": "List notes. Optional: created_before, created_after, updated_after (plus 2 more). Returns the ListNotesOutput.",
+      "description": "List notes. Optional: created_before, created_after, updated_after (plus 2 more). Returns array of NoteSummary.",
       "method": "GET",
       "path": "/v1/notes",
       "params": [

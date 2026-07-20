@@ -22,8 +22,16 @@ func newCollectCmd(flags *rootFlags) *cobra.Command {
 		Long: `For each meeting since DATE, writes daily-named files (YYYY-MM-DD.md)
 containing only microphone-source transcript segments, one paragraph
 per segment, filtered to segments with >= --min-words words.`,
+		Example: strings.Trim(`
+  granola-pp-cli collect --out ./daily-notes --since 7d
+  granola-pp-cli collect -o ./daily-notes --since 2026-07-01 --until 2026-07-15
+  granola-pp-cli collect -o ./daily-notes --since 30d --min-words 8`, "\n"),
 		Annotations: map[string]string{
 			"mcp:read-only": "true",
+			// collect writes daily files, so it needs an --out; give the
+			// verifier realistic args (bounded by --since) instead of the
+			// bare help fall-through.
+			"pp:happy-args": "--out=/tmp/granola-dogfood-collect;--since=7d",
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if outDir == "" {
@@ -92,6 +100,11 @@ per segment, filtered to segments with >= --min-words words.`,
 					continue
 				}
 				fmt.Fprintf(w, `{"day":%q,"file":%q,"segments":%d}`+"\n", day, path, len(perDay[day]))
+			}
+			if len(perDayOrder) == 0 {
+				// No meetings with microphone segments in range — emit a valid
+				// empty array rather than empty stdout.
+				fmt.Fprintln(w, "[]")
 			}
 			return nil
 		},

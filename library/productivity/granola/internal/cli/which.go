@@ -11,10 +11,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// whichEntry is one row of the curated capability index. The index is
-// seeded at generation time from the same NovelFeature list that drives
-// the SKILL.md feature section, so the command a `which` query returns
-// is guaranteed to exist and to match what the skill advertises.
+// whichEntry is one row of the curated capability index. The index is seeded
+// at generation time from the verified NovelFeature list that drives the
+// SKILL.md feature section, so the command a `which` query returns is
+// guaranteed to exist and to match what the skill advertises.
 type whichEntry struct {
 	Command      string `json:"command"`
 	Description  string `json:"description"`
@@ -26,20 +26,7 @@ type whichEntry struct {
 // its hero features. Endpoint-level commands are discoverable via
 // `--help`; `which` exists to resolve a natural-language capability
 // query to one of the commands the skill says matter most.
-var whichIndex = []whichEntry{
-	{Command: "memo run", Description: "Run the preflight → extract pipeline on one meeting or every new meeting since a timestamp, emitting the MEMO three-file artifact and an ndjson run-state ledger.", Group: "MEMO pipeline", WhyItMatters: "Replaces the per-meeting shell loop that drives the MEMO pipeline — one call, one ndjson stream, agent-readable."},
-	{Command: "memo queue", Description: "List every meeting whose transcript is in the cache but whose MEMO triple is not yet on disk.", Group: "MEMO pipeline", WhyItMatters: "Answers the daily question “what’s still un-MEMO’d?” without the user opening Granola at all."},
-	{Command: "attendee timeline", Description: "Every meeting with a given attendee, ordered oldest→newest, with title, date, folder, and recipe-applied flag per row.", Group: "Attendee intelligence", WhyItMatters: "Pre-call prep in one command; surfaces the conversation arc with a single person across months of meetings."},
-	{Command: "attendee brief", Description: "Pulls the last N meetings with an attendee and stitches together their real cached notes plus real AI panel summaries — no synthesis.", Group: "Attendee intelligence", WhyItMatters: "Eliminates the click-each-meeting copy-paste that account leads do before every external call."},
-	{Command: "folder stream", Description: "ndjson stream of every meeting in a Granola folder (resolved via documentLists + listRules) with notes and a named panel inlined.", Group: "Folders + recipes", WhyItMatters: "Replaces the weekly retro workflow of opening a folder and copy-pasting each meeting’s summary into a spreadsheet."},
-	{Command: "recipe coverage", Description: "Surface meetings that did NOT have a named panel template/recipe applied within a date range.", Group: "Folders + recipes", WhyItMatters: "Friday retro question “did I run the Discovery recipe on every new-prospect call?” answered in one row per gap."},
-	{Command: "talktime", Description: "Per-segment-source talk-time for one meeting — microphone (you) vs system (everyone else) in minutes.", Group: "Transcript analytics", WhyItMatters: "Confidence column lets you grade transcript accuracy; mic vs system split is the input to “am I talking too much” retros."},
-	{Command: "talktime", Description: "Lifts the per-source talk-time aggregation across N meetings since a date — who-talked-most over time.", Group: "Transcript analytics", WhyItMatters: "Time-defrag retro input that no per-meeting tool can produce."},
-	{Command: "chat list", Description: "List and dump Granola’s AI chat threads anchored to a meeting (entities.chat_thread + entities.chat_message in the cache).", Group: "Cache-native data", WhyItMatters: "Recovers the AI Q&A history a user has accumulated against a meeting — useful when chasing what you asked about an account weeks ago."},
-	{Command: "duplicates scan", Description: "Hash (title, date-bucket, attendee-email-set) across the cache and a meeting-transcripts repo to surface duplicates at scale.", Group: "Pipeline hygiene", WhyItMatters: "Repos accumulate near-duplicate files when meetings are re-extracted; this returns the dupe groups for cleanup."},
-	{Command: "tiptap extract", Description: "Render documents[id].notes (TipTap JSON: headings, bullet_list, list_item, bold marks, paragraph_break) to canonical markdown instead of falling back to notes_plain.", Group: "Pipeline hygiene", WhyItMatters: "The MEMO summary file’s quality is bounded by extractor fidelity; granola.py loses sub-list hierarchy and bold runs."},
-	{Command: "calendar overlay", Description: "Left-anti-join meetingsMetadata calendar events with documents.google_calendar_event to find calendared-but-not-recorded meetings.", Group: "Cache-native data", WhyItMatters: "Sarah’s Friday retro and Damien’s “what did I miss” sweep both reduce to this row-level diff."},
-}
+var whichIndex = []whichEntry{}
 
 // whichMatch pairs an index entry with its ranking score for a query.
 // Higher score means stronger match. The ranker is naive (exact token
@@ -57,6 +44,7 @@ type whichMatch struct {
 //	+3  exact token match on the command's leaf or full path
 //	+2  substring match on the command (any part)
 //	+2  substring match on the description
+//	+2  per-token match on the description
 //	+1  group tag contains the query as a word
 //
 // Ties break on declaration order in the index. An empty query returns
@@ -74,7 +62,9 @@ func rankWhich(index []whichEntry, query string, limit int) []whichMatch {
 		}
 		return out
 	}
-	qTokens := strings.Fields(q)
+	// Sub-tokenize the query the same way command paths are split, so a
+	// pasted hyphenated capability (repos-list-for-authenticated) matches.
+	qTokens := whichSubTokens(q)
 
 	scored := make([]whichMatch, 0, len(index))
 	for i, e := range index {
@@ -84,7 +74,14 @@ func rankWhich(index []whichEntry, query string, limit int) []whichMatch {
 	}
 
 	sort.SliceStable(scored, func(i, j int) bool {
-		return scored[i].Score > scored[j].Score
+		if scored[i].Score != scored[j].Score {
+			return scored[i].Score > scored[j].Score
+		}
+		// Specificity tie-break: at equal score prefer the command with the
+		// fewest capability sub-tokens - the canonical operation over variants
+		// carrying extra words the request never used.
+		return len(whichSubTokens(strings.ToLower(scored[i].Entry.Command))) <
+			len(whichSubTokens(strings.ToLower(scored[j].Entry.Command)))
 	})
 	// Drop zero-score matches when the query was non-empty; agents
 	// branching on exit code rely on "no match" meaning no confidence.
@@ -103,14 +100,19 @@ func rankWhich(index []whichEntry, query string, limit int) []whichMatch {
 func whichScoreEntry(e whichEntry, query string, qTokens []string) int {
 	score := 0
 	cmd := strings.ToLower(e.Command)
-	cmdTokens := strings.Fields(cmd)
+	// Sub-token split (spaces, hyphens, underscores, slashes): a capability
+	// word buried in a hyphenated leaf (repos-list-for-authenticated) must be
+	// matchable by the words a human asks with, or every command in a group
+	// ties on the group token alone and index order decides the answer.
+	cmdTokens := whichSubTokens(cmd)
 	desc := strings.ToLower(e.Description)
+	descTokens := strings.Fields(desc)
 	group := strings.ToLower(e.Group)
 
 	// Exact token match on the command path (any token).
 	for _, qt := range qTokens {
 		for _, ct := range cmdTokens {
-			if qt == ct {
+			if whichTokenMatch(qt, ct) {
 				score += 3
 				break
 			}
@@ -124,6 +126,23 @@ func whichScoreEntry(e whichEntry, query string, qTokens []string) int {
 	if strings.Contains(desc, query) {
 		score += 2
 	}
+	// Per-token description match, CAPPED: natural-language requests often say
+	// "top coins by market cap" and the endpoint doc uses the same words - but
+	// uncapped description credit lets long token-soup descriptions outrank the
+	// precise command path, so the credit saturates at 3.
+	descCredit := 0
+	for _, qt := range qTokens {
+		for _, dt := range descTokens {
+			if whichTokenMatch(qt, dt) {
+				descCredit++
+				break
+			}
+		}
+		if descCredit == 3 {
+			break
+		}
+	}
+	score += descCredit
 	// Group tag match.
 	if group != "" {
 		for _, qt := range qTokens {
@@ -133,7 +152,121 @@ func whichScoreEntry(e whichEntry, query string, qTokens []string) int {
 			}
 		}
 	}
+	// Possessive aliasing: "my/mine/me/current" in a request is API-speak for
+	// the authenticated caller; commands scoped to the authenticated user must
+	// outrank generic listings for possessive asks.
+	possessive := false
+	for _, qt := range qTokens {
+		switch qt {
+		case "my", "mine", "me", "current":
+			possessive = true
+		}
+	}
+	if possessive {
+		for _, ct := range cmdTokens {
+			if ct == "authenticated" || ct == "me" {
+				score += 3
+				break
+			}
+		}
+	}
+	// Read-intent default: penalize write-verb commands when the request never
+	// asked for a write, so neutral asks can never rank a destructive command
+	// first on a tie.
+	if score > 0 {
+		queryWrite := false
+		for _, qt := range qTokens {
+			if whichWriteVerbs[qt] {
+				queryWrite = true
+				break
+			}
+		}
+		if !queryWrite {
+			for _, ct := range cmdTokens {
+				if whichWriteVerbs[ct] {
+					score -= 2
+					break
+				}
+			}
+		}
+	}
+	// Specificity: a command leaf carrying capability sub-tokens the request never
+	// used is a variant, not the canonical answer ("activity-list-repos-
+	// starred-by-authenticated" for a repositories ask). Parent resource tokens
+	// are excluded so a valid nested command is not erased by its path.
+	if score > 0 && len(qTokens) > 1 {
+		unmatched := 0
+		commandParts := strings.Fields(cmd)
+		leafTokens := whichSubTokens(commandParts[len(commandParts)-1])
+		for _, ct := range leafTokens {
+			hit := false
+			for _, qt := range qTokens {
+				if whichTokenMatch(qt, ct) {
+					hit = true
+					break
+				}
+			}
+			if !hit {
+				unmatched++
+			}
+		}
+		if unmatched > 3 {
+			unmatched = 3
+		}
+		score -= unmatched
+	}
 	return score
+}
+
+func whichTokenMatch(a, b string) bool {
+	a = strings.Trim(strings.ToLower(a), ".,:;!?()[]{}\"'")
+	b = strings.Trim(strings.ToLower(b), ".,:;!?()[]{}\"'")
+	if a == "" || b == "" {
+		return false
+	}
+	if a == b {
+		return true
+	}
+	if whichSingular(a) == whichSingular(b) {
+		return true
+	}
+	return whichTokenAliases[a] != "" && whichTokenAliases[a] == whichTokenAliases[b]
+}
+
+func whichSubTokens(cmd string) []string {
+	return strings.FieldsFunc(cmd, func(r rune) bool {
+		return r == ' ' || r == '-' || r == '_' || r == '/'
+	})
+}
+
+// The closed API-verb set for write-shaped commands. A request that never
+// asked for a write must not tie-break into a destructive command.
+var whichWriteVerbs = map[string]bool{
+	"delete": true, "remove": true, "update": true, "create": true, "set": true,
+	"add": true, "replace": true, "rename": true, "transfer": true, "merge": true,
+	"lock": true, "unlock": true, "star": true, "unstar": true, "follow": true,
+	"unfollow": true, "block": true, "unblock": true, "mute": true, "archive": true,
+	"unarchive": true, "cancel": true, "send": true, "upload": true, "subscribe": true,
+	"unsubscribe": true, "dismiss": true, "approve": true, "decline": true,
+	"post": true, "put": true, "write": true, "edit": true, "modify": true,
+	"publish": true, "share": true, "comment": true, "grant": true, "revoke": true,
+}
+
+var whichTokenAliases = map[string]string{
+	"repo": "repository", "repos": "repository", "repository": "repository", "repositories": "repository",
+}
+
+func whichSingular(s string) string {
+	if len(s) > 3 && strings.HasSuffix(s, "ies") {
+		return strings.TrimSuffix(s, "ies") + "y"
+	}
+	if len(s) > 3 && strings.HasSuffix(s, "es") {
+		return strings.TrimSuffix(s, "es")
+	}
+	if len(s) > 2 && strings.HasSuffix(s, "s") {
+		return strings.TrimSuffix(s, "s")
+	}
+	return s
 }
 
 func newWhichCmd(flags *rootFlags) *cobra.Command {
@@ -142,6 +275,7 @@ func newWhichCmd(flags *rootFlags) *cobra.Command {
 		Use:   "which [query]",
 		Short: "Find the command that implements a capability",
 		Annotations: map[string]string{
+			"mcp:read-only":       "true",
 			"pp:typed-exit-codes": "0,2",
 		},
 		Long: `which resolves a natural-language capability query (for example, "search messages" or "stale tickets") to the best matching command from this CLI's curated feature index.

@@ -3,9 +3,14 @@
 package cli
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
 
-	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/granola"
+	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/client"
+	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -23,10 +28,15 @@ func newPanelGetCmd(flags *rootFlags) *cobra.Command {
 	var asMarkdown, asPlain bool
 	cmd := &cobra.Command{
 		Use:   "get <id>",
-		Short: "Fetch AI panels (summary, action items, etc.) for a meeting",
-		Long: `Calls Granola's /v1/get-document-panels and returns the panel content
-keyed by template slug. --template selects one panel; without it, the
-whole map is returned.`,
+		Short: "Fetch the AI panel/summary for a meeting",
+		Long: `Returns the meeting's AI summary from the public API (synced into the
+local store as the "summary" panel). On Granola v7.4x+ the internal
+named-panel-templates endpoint is sealed; the public API exposes the
+single AI summary, which this serves. --template summary selects it.`,
+		Example: strings.Trim(`
+  granola-pp-cli panel get not_06Yq6JtogRihEr
+  granola-pp-cli panel get not_06Yq6JtogRihEr --template summary --markdown
+  granola-pp-cli panel get not_06Yq6JtogRihEr --template summary --plain`, "\n"),
 		Annotations: map[string]string{
 			"mcp:read-only": "true",
 		},
@@ -38,13 +48,14 @@ whole map is returned.`,
 				return nil
 			}
 			id := args[0]
-			ic, err := granola.NewInternalClient()
-			if err != nil {
-				return authErr(err)
+			if flags.dataSource == "local" {
+				// The AI summary is only in the live detail endpoint, not the
+				// local store; --data-source local can't serve it.
+				return notFoundErr(fmt.Errorf("AI summary for %s is not stored locally; omit --data-source local to fetch it", id))
 			}
-			panels, err := ic.GetDocumentPanels(id)
+			panels, err := restSummaryPanel(cmd.Context(), id)
 			if err != nil {
-				return apiErr(err)
+				return err
 			}
 			if template != "" {
 				val, ok := panels[template]
@@ -70,4 +81,31 @@ whole map is returned.`,
 	cmd.Flags().BoolVar(&asMarkdown, "markdown", false, "Render as markdown sections")
 	cmd.Flags().BoolVar(&asPlain, "plain", false, "Print the selected panel as plain text")
 	return cmd
+}
+
+// restSummaryPanel fetches the meeting's AI summary live from the public API
+// (the /v1/notes/{id} detail carries summary_markdown/summary_text; the list
+// sync does not), shaped as a {"summary": ...} panel map.
+func restSummaryPanel(ctx context.Context, id string) (map[string]string, error) {
+	cfg, err := config.Load("")
+	if err != nil {
+		return nil, configErr(err)
+	}
+	c := client.New(cfg, 30*time.Second, 0)
+	raw, err := c.Get(ctx, "/v1/notes/"+id, nil)
+	if err != nil {
+		return nil, apiErr(fmt.Errorf("fetch AI summary for %s from the public API: %w", id, err))
+	}
+	var d restNoteDetail
+	if err := json.Unmarshal(raw, &d); err != nil {
+		return nil, apiErr(fmt.Errorf("parse summary for %s: %w", id, err))
+	}
+	summary := d.SummaryMD
+	if summary == "" {
+		summary = d.SummaryText
+	}
+	if summary == "" {
+		return nil, notFoundErr(fmt.Errorf("no AI summary available for meeting %s", id))
+	}
+	return map[string]string{"summary": summary}, nil
 }

@@ -4,6 +4,7 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/granola"
@@ -18,6 +19,9 @@ func newRecipeCoverageCmd(flags *rootFlags) *cobra.Command {
 		Short: "List meetings in the window that do NOT have a named panel applied",
 		Long: `For each meeting in the window, calls /v1/get-document-panels and
 emits ndjson for meetings where the slug is missing.`,
+		Example: strings.Trim(`
+  granola-pp-cli recipes coverage action-items --last 30d
+  granola-pp-cli recipes coverage exec-summary --since 2026-07-01 --limit 50`, "\n"),
 		Annotations: map[string]string{
 			"mcp:read-only": "true",
 		},
@@ -38,13 +42,23 @@ emits ndjson for meetings where the slug is missing.`,
 				return err
 			}
 			ids := selectDocsInWindow(c, from, to, limit)
+			// Named panel templates (recipes) live ONLY in Granola's internal
+			// panels API, which is sealed on v7.4x+. The public API exposes just
+			// the single AI summary, not named templates — so coverage cannot be
+			// computed. Fail honestly rather than report every meeting as
+			// "missing" (a fabricated negative).
 			ic, ierr := granola.NewInternalClient()
+			if ierr != nil {
+				return apiErr(fmt.Errorf("recipe coverage is unavailable: named-panel data lives only in Granola's internal API, which is sealed on Granola v7.4x+ (the public API exposes the AI summary but not named panel templates)"))
+			}
 			w := cmd.OutOrStdout()
 			for _, id := range ids {
 				d := c.DocumentByID(id)
-				var panels map[string]string
-				if ierr == nil {
-					panels, _ = ic.GetDocumentPanels(id)
+				panels, perr := ic.GetDocumentPanels(id)
+				if perr != nil {
+					// Don't fabricate "missing" from a fetch failure — the named
+					// panels endpoint is sealed on v7.4x+.
+					return apiErr(fmt.Errorf("recipe coverage is unavailable: named-panel data lives only in Granola's internal API, which is sealed on Granola v7.4x+"))
 				}
 				if _, has := panels[slug]; has {
 					continue

@@ -2,7 +2,7 @@
 
 **Every Granola feature — plus offline SQLite cross-meeting search, attendee timelines, and a MEMO pipeline runner no other Granola tool has.**
 
-granola-pp-cli reads Granola’s local cache directly and adds the queries Granola.ai’s web app and existing community CLIs cannot answer. Cache-first, then internal API, then public API — transparent fallthrough. memo run, memo queue, attendee timeline, recipes coverage, calendar overlay, and talktime are local-data joins no per-meeting tool produces. Works offline; agent-native JSON by default.
+granola-pp-cli sources every meeting from Granola’s public surfaces — the public REST API (`public-api.granola.ai/v1`) for the meeting list, speaker-labeled transcripts, AI summaries, folders, attendees, and calendar, plus Granola’s official MCP server (`mcp.granola.ai`) for the raw private/human notes the REST API omits — and syncs all of it into a local SQLite store. That store powers the cross-meeting queries Granola.ai’s web app and existing community CLIs cannot answer: memo run, memo queue, attendee timeline, recipes coverage, calendar overlay, and talktime are offline data joins no per-meeting tool produces. The sealed desktop store (`cache-v6.json.enc`) is app-private on Granola v7.4x+ and is not used. Works offline once synced; agent-native JSON by default.
 
 Created by [@dstevens](https://github.com/dstevens) (Damien Stevens).
 
@@ -50,14 +50,6 @@ Download a pre-built binary for your platform from the [latest release](https://
 <!-- pp-hermes-install-anchor -->
 ## Install for Hermes
 
-Install the CLI binary first. The installer writes binaries to a per-user managed bin directory by default: `$HOME/.local/bin` on macOS/Linux and `%LOCALAPPDATA%\Programs\PrintingPress\bin` on Windows.
-
-```bash
-npx -y @mvanhorn/printing-press-library install granola --cli-only
-```
-
-Then install the focused Hermes skill.
-
 From the Hermes CLI:
 
 ```bash
@@ -66,18 +58,16 @@ hermes skills install mvanhorn/printing-press-library/cli-skills/pp-granola --fo
 
 Inside a Hermes chat session:
 
-```bash
+```text
 /skills install mvanhorn/printing-press-library/cli-skills/pp-granola --force
 ```
 
-Restart the Hermes session or gateway if the newly installed skill is not visible immediately.
-
 ## Install for OpenClaw
 
-Install both the CLI binary and the focused OpenClaw skill. The installer defaults binaries to a per-user bin directory (`$HOME/.local/bin` on macOS/Linux, `%LOCALAPPDATA%\Programs\PrintingPress\bin` on Windows):
+Install both the CLI binary and the focused OpenClaw skill into runtime-visible locations:
 
 ```bash
-npx -y @mvanhorn/printing-press-library install granola --agent openclaw
+npx -y @mvanhorn/printing-press-library install granola --agent openclaw --bin-dir ~/.local/bin
 ```
 
 Restart the OpenClaw session or gateway if the newly installed skill is not visible immediately.
@@ -121,18 +111,53 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 
 ## Authentication
 
-Three auth surfaces, ordered fastest to most permissioned. The local cache at ~/Library/Application Support/Granola/cache-v6.json needs no credentials. The internal API at api.granola.ai auto-discovers your WorkOS access_token from supabase.json / stored-accounts.json and rotates the refresh token through WorkOS on every call. The public API at public-api.granola.ai accepts a Bearer key in `GRANOLA_API_KEY` for workspace-scoped queries; it backs the typed `notes` and `folders` top-level commands and is the source when you pass `--data-source live`.
+Two surfaces. The public REST API key is the floor that powers everything; Granola’s official MCP is an optional add-on that only supplies your private notes. Neither is “one or the other” — the key is required, the MCP is additive.
+
+### `GRANOLA_API_KEY` — public REST API (required)
+
+Powers everything: `sync`, meetings, transcripts, summaries, folders, attendees, talk-time, search, and the MEMO pipeline’s transcript + summary. Get it from **Granola Settings → API**. A **Personal** key exposes your own notes; a **Workspace** key exposes workspace-visible notes — both work identically with this CLI. Set it in your environment:
+
+```bash
+export GRANOLA_API_KEY=<your-key>
+```
+
+![Granola Settings → API showing a Personal API key and a Workspace API key](docs/images/granola-api-keys-personal-vs-workspace.png)
+
+*Granola Settings → API. Either a **Personal** key (your notes) or a **Workspace** key (workspace-visible notes) works — the CLI treats them identically.*
+
+### Granola’s official MCP — private/human notes (optional, additive)
+
+Granola’s REST API omits your raw private/human notes; Granola’s official MCP server (`https://mcp.granola.ai`) is the only source for them. Connecting it is optional — everything else works without it, and the commands that show human notes (`notes-show`, `memo`, `extract`, `export`) simply omit the human-notes section until you connect. Connect once, then verify:
+
+```bash
+granola-pp-cli mcp-auth login     # browser OAuth (PKCE); tokens saved to the macOS Keychain, never on disk
+granola-pp-cli mcp-auth status    # is it connected?
+granola-pp-cli mcp-auth verify    # confirm private notes are reachable end-to-end
+```
+
+![Connecting Granola’s official MCP server](docs/images/granola-mcp-setup.png)
+
+*Granola’s official MCP setup. `mcp-auth login` connects the CLI to `mcp.granola.ai` as an OAuth client so it can fetch the private notes REST omits.*
+
+> **Two different MCP servers — don’t conflate them.** This CLI *exposes its own* MCP server (`granola-pp-mcp`, the agent-native surface that mirrors its commands as tools — see [Use with Claude Desktop](#use-with-claude-desktop) above) **and** separately *consumes Granola’s official* MCP server (`mcp.granola.ai`, an external service run by Granola) as an OAuth client to fetch your private notes. `mcp-auth` connects the latter; it has nothing to do with the former.
+
+> **The sealed desktop store is unused.** On Granola v7.4x+ the local store (`~/Library/Application Support/Granola/cache-v6.json.enc`) sits behind Granola’s own macOS Keychain access group and its internal API token behind the same wall, so no third-party binary can decrypt it. This CLI does not try — all data flows through the public REST API and the official MCP instead.
 
 ## Quick Start
 
 ```bash
-# Confirm cache + WorkOS token + (optional) public API key all resolve.
+# Confirm the REST key resolves and show MCP + local-store status.
 granola-pp-cli doctor --json
 
-# Hydrate the local SQLite store from cache + any deltas via internal API.
+# Populate the local SQLite store from the public REST API
+# (meeting list + folders + per-meeting transcripts/attendees;
+#  also pulls private notes if Granola's MCP is connected).
 granola-pp-cli sync
 
-# What’s in cache but not yet MEMO’d this week.
+# Optional: connect Granola's official MCP to add your private/human notes.
+granola-pp-cli mcp-auth login
+
+# What’s synced but not yet MEMO’d this week.
 granola-pp-cli memo queue --since 7d --json
 
 # Run the full MEMO pipeline on every meeting since yesterday.
@@ -263,8 +288,14 @@ This CLI exposes 35+ commands. Use `granola-pp-cli --help` for the canonical tre
 | **Cross-meeting analytics** | `attendee timeline / brief`, `folder stream`, `recipes coverage`, `talktime`, `calendar overlay`, `stats frequency / duration / attendees / calendar`, `collect`, `duplicates scan`, `chat list / get` |
 | **Granola entities** | `folders`, `folder list / stream`, `recipes list / describe / coverage`, `workspaces list` |
 | **Public API mirrors** | `notes list / get`, `folders` (require `GRANOLA_API_KEY`) |
-| **Sync / system** | `sync`, `sync-api`, `doctor`, `auth login / status / set-token / logout`, `which`, `agent-context`, `version`, `import` |
+| **Sync / system** | `sync`, `enrich`, `sync-api`, `mcp-auth login / status / verify / logout`, `doctor`, `auth login / status / set-token / logout`, `which`, `agent-context`, `version`, `import` |
 | **GUI bridge (macOS only)** | `warm <id> <query>` — prints by default; `--launch` activates the Granola desktop app |
+
+The REST + MCP model adds three commands worth calling out:
+
+- **`sync`** — one command to populate the local SQLite store from the public REST API (meeting list + folders), enriching meetings/transcripts/attendees from the per-meeting detail endpoint; also pulls private notes when Granola’s MCP is connected. `--full` enriches the entire library (default: 50 most recent).
+- **`enrich [--limit N | --full]`** — the detail/transcript/notes enrichment step on its own. `sync` runs it for you; call it directly to refresh more meetings (`--full` for the whole library).
+- **`mcp-auth login | status | verify | logout`** — connect and inspect Granola’s official MCP for private/human notes. `verify` confirms those notes are reachable end-to-end.
 
 ## Output Formats
 
@@ -303,13 +334,13 @@ Exit codes: `0` success, `2` usage error, `3` not found, `4` auth error, `5` API
 
 Every command auto-refreshes the local store as its first action. You do not need to run `granola-pp-cli sync` before `meetings list`, `panel get`, or any other read.
 
-Both auth surfaces refresh independently: the desktop encrypted cache (`~/Library/Application Support/Granola/cache-v6.json.enc`) via the embedded `sync` path, and the public REST API (when `GRANOLA_API_KEY` is set or an access token is saved) via the embedded `sync-api` path. When both are available, both refresh routines fire. When neither is configured, auto-refresh is a silent no-op.
+Auto-refresh pulls from the public REST API (`public-api.granola.ai`) when `GRANOLA_API_KEY` is set — the meeting list and folders plus per-meeting transcript/attendee enrichment — and, when Granola’s official MCP is connected, your private/human notes. The sealed desktop store (`cache-v6.json.enc`) is app-private on Granola v7.4x+, so that surface is a no-op. When no API key is configured, auto-refresh is a silent no-op and the underlying command produces its own auth error.
 
-A one-line provenance summary lands on stderr in interactive mode: `auto-refresh: cache=ok (1.2s, 47 rows)`. It is suppressed under `--agent`, `--json`, `--compact`, `--quiet`, and when stderr is piped — so agent and CI consumers see no chatter on stdout or stderr.
+A one-line provenance summary lands on stderr in interactive mode: `auto-refresh: api=ok (1.2s, 47 rows)`. It is suppressed under `--agent`, `--json`, `--compact`, `--quiet`, and when stderr is piped — so agent and CI consumers see no chatter on stdout or stderr.
 
 Opt out with `--no-refresh` for a single command, `GRANOLA_NO_AUTO_REFRESH=1` for a shell session or CI job, or by saving a profile with `--no-refresh` (`granola-pp-cli profile save fast --no-refresh`). The skip list (commands that never auto-refresh) is `sync`, `sync-api`, `auth`, `doctor`, `help`, `version`, `completion`, `agent-context`, `profile`, `feedback`, `which`. Run `granola-pp-cli agent-context --json` to see the full contract as structured JSON.
 
-Auto-refresh reads from Granola desktop's encrypted cache file; it does not poke the desktop app to refresh from Granola servers. The freshness ceiling is whatever Granola desktop has already pulled.
+Auto-refresh reads from Granola’s public REST API; it does not poke the desktop app. The freshness ceiling is whatever Granola has published to your account through the REST API and MCP.
 
 ## Health Check
 
@@ -317,7 +348,7 @@ Auto-refresh reads from Granola desktop's encrypted cache file; it does not poke
 granola-pp-cli doctor
 ```
 
-Verifies configuration, credentials, and connectivity to the API.
+`doctor` verifies your setup end-to-end: it makes a real call against the public REST API to confirm `GRANOLA_API_KEY` works, reports whether Granola’s official MCP is connected (so private/human notes are reachable), and reports the sealed desktop store as **app-private** on Granola v7.4x+ — an INFO line, not an error. It also shows local-store freshness and row counts. Add `--json` for machine-readable output or `--fail-on error` to exit non-zero on failure.
 
 ## Configuration
 
@@ -329,7 +360,9 @@ Environment variables:
 
 | Name | Kind | Required | Description |
 | --- | --- | --- | --- |
-| `GRANOLA_API_KEY` | per_call | No | Set to your API credential. |
+| `GRANOLA_API_KEY` | per_call | Yes | Public REST API key from Granola Settings → API (Personal or Workspace). Powers `sync` and every data command. |
+
+Granola’s official MCP (for private/human notes) is connected separately with `granola-pp-cli mcp-auth login` (browser OAuth); its tokens live in the macOS Keychain, not in an environment variable.
 
 ## Troubleshooting
 **Authentication errors (exit code 4)**
@@ -341,11 +374,12 @@ Environment variables:
 
 ### API-specific
 
-- **doctor reports cache file not found** — Make sure Granola is installed and you’ve opened it at least once. Override the path with GRANOLA_CACHE_PATH=/custom/path/cache-v6.json.
-- **WorkOS token expired warning** — Open the Granola desktop app once — it refreshes the token. Or pass a personal API key via GRANOLA_API_KEY to route through the public API instead.
+- **doctor says `key_unavailable`, or "can't read the desktop cache" / "encrypted store app-private"** — Expected on Granola v7.4x+. Granola sealed its local store behind its own macOS Keychain access group, so no third-party binary can decrypt it — this is not an error. Run `granola-pp-cli sync` to populate the store from the public REST API, and `granola-pp-cli mcp-auth login` to add your private/human notes.
+- **Authentication error (exit code 4) / empty results** — Make sure `GRANOLA_API_KEY` is set (`echo $GRANOLA_API_KEY`); get a Personal or Workspace key from Granola Settings → API. Run `granola-pp-cli doctor` to confirm the key reaches the REST API.
+- **Human/private notes are missing from `notes-show`, `memo`, `extract`, or `export`** — The public REST API omits raw private notes. Connect Granola’s official MCP with `granola-pp-cli mcp-auth login`, then `granola-pp-cli mcp-auth verify` to confirm they’re reachable.
 - **memo run --since reports duplicate_of** — A file with the same title-date-attendees fingerprint already exists in --to. Pick a different `--to` directory, remove the existing file, or `mv` it out of the way.
-- **Transcript missing for a recent meeting** — Granola hasn’t flushed it yet. Run warm <id> <q> --launch to bring it forward in the GUI, wait 30 s, then re-run preflight.
-- **stats / talktime returns empty rows** — Auto-refresh runs `sync` on every command, so this usually means there is nothing to sync. Confirm Granola desktop is signed in and has captured at least one meeting; run `granola-pp-cli doctor` to verify the cache is decryptable. If you bypassed auto-refresh with `--no-refresh` or `GRANOLA_NO_AUTO_REFRESH=1`, run `granola-pp-cli sync` manually.
+- **Transcript missing for a recent meeting** — Granola may not have processed it server-side yet, or it isn’t in the synced window. Run `granola-pp-cli sync` (or `granola-pp-cli enrich --full` to enrich the entire library), then retry.
+- **stats / talktime returns empty rows** — The local store is empty or stale. Run `granola-pp-cli sync` to hydrate it from the REST API (add `--full` to pull the whole library). Confirm `GRANOLA_API_KEY` is set via `granola-pp-cli doctor`. If you bypassed auto-refresh with `--no-refresh` or `GRANOLA_NO_AUTO_REFRESH=1`, run `granola-pp-cli sync` manually.
 
 ---
 

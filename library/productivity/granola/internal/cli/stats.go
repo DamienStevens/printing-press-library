@@ -4,6 +4,7 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -106,6 +107,9 @@ func newStatsDurationCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "duration",
 		Short: "Total meeting duration aggregated by participant or calendar or template",
+		Example: strings.Trim(`
+  granola-pp-cli stats duration --by participant
+  granola-pp-cli stats duration --by calendar --json`, "\n"),
 		Annotations: map[string]string{
 			"mcp:read-only": "true",
 		},
@@ -179,6 +183,9 @@ func newStatsAttendeesCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "attendees",
 		Short: "Top N attendees by meeting count",
+		Example: strings.Trim(`
+  granola-pp-cli stats attendees
+  granola-pp-cli stats attendees --top 10 --json`, "\n"),
 		Annotations: map[string]string{
 			"mcp:read-only": "true",
 		},
@@ -224,6 +231,9 @@ func newStatsCalendarCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "calendar",
 		Short: "Top calendar attendees/domains",
+		Example: strings.Trim(`
+  granola-pp-cli stats calendar --top-domains
+  granola-pp-cli stats calendar --top-emails --top 15 --json`, "\n"),
 		Annotations: map[string]string{
 			"mcp:read-only": "true",
 		},

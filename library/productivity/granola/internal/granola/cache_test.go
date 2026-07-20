@@ -3,9 +3,12 @@
 package granola
 
 import (
+	"errors"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/mvanhorn/printing-press-library/library/productivity/granola/internal/granola/safestorage"
 )
 
 // TestLoadCache_RealFile loads the actual Granola cache when present.
@@ -23,6 +26,13 @@ func TestLoadCache_RealFile(t *testing.T) {
 	}
 	c, err := LoadCache("")
 	if err != nil {
+		// Granola v7.4x+ sealed the desktop store behind its own Keychain
+		// access group; a third-party binary can no longer decrypt it. That is
+		// the expected state on current Granola, not a test failure — the CLI
+		// serves the SQLite store (REST-synced) instead. Skip rather than fail.
+		if errors.Is(err, safestorage.ErrKeyUnavailable) || errors.Is(err, safestorage.ErrDecryptFailed) {
+			t.Skipf("desktop store sealed (Granola v7.4x+); third-party decrypt not possible: %v", err)
+		}
 		t.Fatalf("LoadCache: %v", err)
 	}
 	if c.Version <= 0 {
