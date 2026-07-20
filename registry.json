@@ -4398,6 +4398,112 @@
       }
     },
     {
+      "name": "discogs",
+      "category": "media-and-entertainment",
+      "api": "Discogs",
+      "description": "Every Discogs feature — plus a local price-history mirror the API doesn't keep, so you can watch your wantlist like a limit-order book, spot underpriced records, and track your collection's value over time.",
+      "search_terms": [
+        "discogs",
+        "discogs-pp-cli",
+        "Every Discogs feature — plus a local price-history mirror the API doesn't keep, so you can watch your wantlist like a limit-order book, spot underpriced records, and track your collection's value over time.",
+        "Wantlist limit-order fills",
+        "fills",
+        "Treat each wantlist entry as a standing limit order and surface the ones now selling at or below the max price you set.",
+        "Portfolio value + history",
+        "portfolio",
+        "Chart your collection's value over time with per-record contribution to the change and cost-basis P&L.",
+        "Undervalued detection",
+        "undervalued",
+        "Flag releases whose current asking price sits below their own trailing/suggested baseline.",
+        "Condition-matched comps",
+        "comps",
+        "The condition-by-condition price picture for one release, with local snapshot history the API can't provide.",
+        "Fee-aware sell router",
+        "sell-plan",
+        "Rank your inventory or collection by net-after-fee proceeds and liquidity so you know what to sell now.",
+        "Catno/barcode identity spine",
+        "identify",
+        "Resolve a physical record's catalog number or barcode to the exact release and show if you own it, want it, and what it's worth.",
+        "Pressing value ranker",
+        "pressings",
+        "Rank all versions/pressings of a master release by value and liquidity so you know which pressing to buy, want, or sell."
+      ],
+      "path": "library/media-and-entertainment/discogs",
+      "printer": "ganes-j",
+      "printer_name": "ganes-j",
+      "creator": {
+        "handle": "ganes-j",
+        "name": "ganes-j"
+      },
+      "mcp": {
+        "binary": "discogs-pp-mcp",
+        "transports": [
+          "stdio",
+          "http"
+        ],
+        "tool_count": 54,
+        "public_tool_count": 0,
+        "auth_type": "api_key",
+        "env_vars": [
+          "DISCOGS_TOKEN"
+        ],
+        "mcp_ready": "full",
+        "spec_format": "internal"
+      }
+    },
+    {
+      "name": "dnsmadeeasy",
+      "category": "developer-tools",
+      "api": "Dnsmadeeasy",
+      "description": "Every DNS Made Easy operation, plus a local record store for cross-zone search, drift detection, and 'where is this IP used' — instant and offline.",
+      "search_terms": [
+        "dnsmadeeasy",
+        "dnsmadeeasy-pp-cli",
+        "Every DNS Made Easy operation, plus a local record store for cross-zone search, drift detection, and 'where is this IP used' — instant and offline.",
+        "Cross-zone value provenance",
+        "where-used",
+        "Find every zone and record whose value or CNAME/MX/ANAME target matches an IP, hostname, or string across your entire account.",
+        "Snapshot drift detection",
+        "drift",
+        "Diff the two most recent local sync snapshots and report which records were added, changed, or removed.",
+        "Zone export (BIND/JSON)",
+        "export",
+        "Serialize a zone's records from the local mirror to a standards-compliant BIND zone file or JSON, with no API call.",
+        "DNS-hygiene audit",
+        "health",
+        "Audit every zone for dangling CNAMEs, out-of-range TTLs, zones missing SPF/DMARC/CAA, and duplicate or conflicting records.",
+        "Cross-zone bulk record change",
+        "bulk-apply",
+        "Select records by value and type across all zones locally, preview the plan, then apply the change via the real multi-record update endpoint per affected zone.",
+        "Stale ACME challenge cleanup",
+        "acme-purge",
+        "Find _acme-challenge TXT records across all zones and delete stale or orphaned ones via the real multi-record delete endpoint."
+      ],
+      "path": "library/developer-tools/dnsmadeeasy",
+      "printer": "dericknwq",
+      "printer_name": "Derick Ng",
+      "creator": {
+        "handle": "dericknwq",
+        "name": "Derick Ng"
+      },
+      "mcp": {
+        "binary": "dnsmadeeasy-pp-mcp",
+        "transports": [
+          "stdio",
+          "http"
+        ],
+        "tool_count": 42,
+        "public_tool_count": 0,
+        "auth_type": "api_key",
+        "env_vars": [
+          "DNSMADEEASY_API_KEY",
+          "DNSMADEEASY_API_SECRET"
+        ],
+        "mcp_ready": "full",
+        "spec_format": "internal"
+      }
+    },
+    {
       "name": "docker-hub",
       "category": "developer-tools",
       "api": "Docker Hub",
@@ -6060,9 +6166,9 @@
       "path": "library/productivity/figma",
       "release": {
         "cli_name": "figma-pp-cli",
-        "version": "2026.7.1",
-        "released_at": "2026-07-08T18:21:21Z",
-        "source_commit": "11d7b4ea752c9c8fb8909037133058eb57560cc0"
+        "version": "2026.7.2",
+        "released_at": "2026-07-20T20:35:32Z",
+        "source_commit": "614d3fba1c0d762152eca9ee78f492667a0a38af"
       },
       "printer": "giacaglia",
       "printer_name": "Giuliano Giacaglia",
