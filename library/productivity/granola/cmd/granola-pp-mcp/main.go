@@ -24,9 +24,6 @@ const (
 	defaultHTTPAddr = ":7777"
 )
 
-// version is the printed MCP server's version, overridable at build time via ldflags.
-var version = "0.0.0-dev"
-
 func main() {
 	// Pin the learn-event surface for this process and every walker
 	// shell-out child, so usage events record surface=mcp.
@@ -37,7 +34,7 @@ func main() {
 	}
 	s := server.NewMCPServer(
 		"Granola",
-		version,
+		"1.0.0",
 		server.WithToolCapabilities(false),
 	)
 
